@@ -1,4 +1,4 @@
-# Average nucleotide identity predicts kin discrimination, but mobile genetic elements determine its outcome in *Bacillus subtilis*
+# Project anikin: Average nucleotide identity predicts kin discrimination, but mobile genetic elements determine its outcome in *Bacillus subtilis*
 
 Code, figure-generation workflows and analysis scripts for Stare et al. (to be updated, in prep.).
 
