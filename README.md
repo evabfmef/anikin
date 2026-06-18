@@ -70,7 +70,7 @@ Note: The main and supplementary figures, final curated supplementary tables are
  
 ## Requirements
  
-See `environment/` for the package lists and versions. In brief, the workflow uses command-line bioinformatics tools (fastANI, Roary, Prokka, antiSMASH, PHASTER, RAxML, TAfinder, BUSCO, CheckM) together with Python (scikit-learn, pandas, NumPy, matplotlib, seaborn) and R (tidyverse, ggplot2, ape, diptest). Tool versions are also reported in the manuscript Methods.
+See `environment/` for the package lists and versions. In brief, the workflow uses bioinformatics tools (fastANI, Roary, Prokka, antiSMASH, PHASTER, RAxML, TAfinder, BUSCO, CheckM, BLAST, MUSCLE, and PredicTF) together with Python (scikit-learn, pandas, NumPy, matplotlib, seaborn, BioPython, networkx, plotly, cobra) and R (tidyverse, ggplot2, ape, diptest, vegan, circlize, ComplexHeatmap). Tool versions are also reported in the manuscript Methods.
 
 ---
 ## Citation
