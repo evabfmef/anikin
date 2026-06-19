@@ -3,7 +3,7 @@ Code and analysis scripts for **Average nucleotide identity predicts kin discrim
 
 ---
 ## Overview
-This repository contains analysis code and documentstion supporting the manuscript:
+This repository contains analysis code and documentation supporting the manuscript:
 
 Title: Average nucleotide identity predicts kin discrimination, but mobile genetic elements determine its outcome in *Bacillus subtilis*
 
@@ -44,21 +44,24 @@ particularly SPβ prophage variation, LXG polymorphic toxin/antitoxin variants, 
 anikin/
 ├── README.md                     # this file
 ├── scripts/                      # analysis and figure-generation scripts (S1–S18)
+├── docs/
+│   └── software_versions.md      # tool, database, and environment versions
 └── environment/
-    ├── R_packages.txt            # R libraries required by the R scripts
-    └── requirements.txt          # Python packages required by the Python scripts
+    ├── R_packages.txt            # R packages used by the R scripts
+    └── requirements.txt          # Python packages used by the Python scripts
 ```
  
 ---
   
 ## Reproducibility Scope
-This repository provides the analysis scripts and documents the analytical workflow underlying the manuscript. It is intended to make the analysis steps transparent and inspectable. Inputs are described in the manuscript Methods section; the scripts are not packaged for one-click execution.
+This repository provides the analysis scripts and documents the software versions and environment underlying the manuscript. It is intended to make the analysis steps transparent and inspectable. Inputs are described in the manuscript Methods section; the scripts are not packaged for one-click execution.
 
 #### Included in this repository
 - Analysis and figure-generation scripts (S1–S18)
-- Documentation of the analytical workflow and software versions
+- Package lists (`environment/`)
+- Software, database, and environment versions (`docs/software_versions.md`)
 
-Note: The main and supplementary figures, final curated supplementary tables are published with the article and are not duplicated here; see the Supplementary Information accompanying the manuscript.
+Note: The main and supplementary figures and final curated supplementary tables are published with the article and are not duplicated here; see the Supplementary Information accompanying the manuscript.
 
 #### Not included
 - Raw sequencing reads
@@ -70,7 +73,7 @@ Note: The main and supplementary figures, final curated supplementary tables are
  
 ## Requirements
  
-See `environment/` for the package lists and versions. In brief, the workflow uses bioinformatics tools (fastANI, Roary, Prokka, antiSMASH, PHASTER, RAxML, TAfinder, BUSCO, CheckM, BLAST, MUSCLE, and PredicTF) together with Python (scikit-learn, pandas, NumPy, matplotlib, seaborn, BioPython, networkx, plotly, cobra) and R (tidyverse, ggplot2, ape, diptest, vegan, circlize, ComplexHeatmap). Tool versions are also reported in the manuscript Methods.
+In brief, the workflow uses bioinformatics tools (e.g. fastANI, Roary, Prokka, antiSMASH) together with Python (e.g. scikit-learn, pandas, BioPython) and R (e.g. tidyverse, ggplot2, ape). Full package lists are in `environment/`; the complete tool, database, and version list is in `docs/software_versions.md` and the manuscript Methods.
 
 ---
 ## Citation
