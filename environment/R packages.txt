@@ -1,0 +1,28 @@
+# R packages required by the R scripts in this repository.
+# Packages came from CRAN or Bioconductor, as given below.
+# Versions below are those used in this study.
+# R version used: 4.5.0
+
+# --- CRAN ---
+tidyverse   # v2.0.0
+ggplot2     # v3.5.2
+dplyr       # v1.1.4
+tidyr       # v1.3.1
+readxl      # v1.4.5
+openxlsx    # v4.2.8
+writexl     # v1.5.4
+ggrepel     # v0.9.6
+svglite     # v2.2.1
+gridExtra   # v2.3
+knitr       # v1.50
+kableExtra  # v1.4.0
+ape         # v5.8-1
+vegan       # v2.7-1
+circlize    # v0.4.16
+diptest     # v0.77-2
+
+# --- Bioconductor ---
+ComplexHeatmap   # v2.24.1
+
+# --- base R ---
+grid    # v4.5.0

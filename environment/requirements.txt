@@ -1,0 +1,18 @@
+# Python packages required by the Python scripts in this repository.
+# Standard-library modules that ship with Python are not listed (os, sys, re, json, glob, csv, logging,...)
+# Versions below are those used in this study.
+# Python version used: 3.10 / 3.12
+
+pandas        # v2.0 / v2.2.2
+numpy         # v2.0.2
+biopython     # v1.83
+scikit-learn  # v1.6.1
+matplotlib    # v3.10.0
+seaborn       # v0.13.2
+networkx      # v3.6.1
+openpyxl      # v3.1.5
+xlsxwriter    # v3.2.9
+plotly        # v5.24.1
+kaleido       # v1.2.0
+cobra         # v0.26.0
+joblib        # v1.5.3
