@@ -43,10 +43,14 @@ particularly SPβ prophage variation, LXG polymorphic toxin/antitoxin variants, 
 ```
 anikin/
 ├── README.md                     # this file
-├── scripts/                      # analysis and figure-generation scripts (S1–S18)
+├── scripts/
+│   ├── README.md                 # script index and notes
+│   └── S1–S18 ...                # analysis and figure-generation scripts
 ├── docs/
+│   ├── data_overview.md          # datasets and curation notes
 │   └── software_versions.md      # tool, database, and environment versions
 └── environment/
+    ├── README.md                 # environment notes
     ├── R_packages.txt            # R packages used by the R scripts
     └── requirements.txt          # Python packages used by the Python scripts
 ```
@@ -60,6 +64,7 @@ This repository provides the analysis scripts and documents the software version
 - Analysis and figure-generation scripts (S1–S18)
 - Package lists (`environment/`)
 - Software, database, and environment versions (`docs/software_versions.md`)
+- Datasets, provenance, and curation notes (`docs/data_overview.md`)
 
 Note: The main and supplementary figures and final curated supplementary tables are published with the article and are not duplicated here; see the Supplementary Information accompanying the manuscript.
 
