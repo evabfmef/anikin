@@ -1,5 +1,5 @@
 # anikin
-Code and analysis scripts for **Average nucleotide identity predicts kin discrimination, but mobile genetic elements determine its outcome in *Bacillus subtilis***; Stare et al. (to be updated, in prep.)
+Code and analysis scripts for **Average nucleotide identity predicts kin discrimination, but mobile genetic elements determine its outcome in *Bacillus subtilis***; Stare et al., 2026 (to be updated, in prep.)
 
 ---
 ## Overview
