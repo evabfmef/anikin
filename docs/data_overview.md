@@ -2,7 +2,7 @@
  
 ## Purpose
  
-This document summarizes the datasets underlying the study *"Average nucleotide identity predicts kin discrimination, but mobile genetic elements determine its outcome in Bacillus subtilis"* (Stare et al.) and clarifies which components are included in this repository and which are not.
+This document summarizes the datasets underlying the study *"Kin discrimination in Bacillus subtilis is predicted by average nucleotide identity but shaped by mobile genetic elements"* (Stare et al.) and clarifies which components are included in this repository and which are not.
  
 ---
  
