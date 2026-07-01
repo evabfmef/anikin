@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document records the main software tools, databases, and computational environments used in the study *"Average nucleotide identity predicts kin discrimination, but mobile genetic elements determine its outcome in Bacillus subtilis"* (Stare et al.).
+This document records the main software tools, databases, and computational environments used in the study *"Kin discrimination in Bacillus subtilis is predicted by average nucleotide identity but shaped by mobile genetic elements"* (Stare et al.).
 
 Versions are those used in this study. Tools without a version below were not version-pinned in the original workflow; where known, the version is given. Python and R package versions are listed separately in `environment/requirements.txt` and `environment/R_packages.txt`.
 
