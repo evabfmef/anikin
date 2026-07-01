@@ -2,7 +2,7 @@
  
 ## Overview
  
-This directory contains the analysis and figure-generation scripts (S1–S18) underlying the study *"Average nucleotide identity predicts kin discrimination, but mobile genetic elements determine its outcome in Bacillus subtilis"* (Stare et al.). They implement the analytical steps described in the Methods, from genome annotation and average nucleotide identity (ANI), pangenome analysis, feature-matrix construction, machine-learning classification, enrichment study, and figure generation.
+This directory contains the analysis and figure-generation scripts (S1–S18) underlying the study *"Kin discrimination in Bacillus subtilis is predicted by average nucleotide identity but shaped by mobile genetic elements"* (Stare et al.). They implement the analytical steps described in the Methods, from genome annotation and average nucleotide identity (ANI), pangenome analysis, feature-matrix construction, machine-learning classification, enrichment study, and figure generation.
  
 Scripts are numbered in approximate order of use. Multi-part steps share a number with letter suffixes (e.g. S5A, S5B, S5C).
 
