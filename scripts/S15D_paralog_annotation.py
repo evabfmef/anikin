@@ -1,10 +1,20 @@
 """
-# Paralog Annotation of Corrected Features
+Paralog Annotation of Corrected Features
 
-**Author:** Eva Stare
+Author: Eva Stare
 
-This notebook annotates the validated group-specific features with paralog and split
-gene information from the manual review of Script S15C results.
+This script annotates the validated group-specific features with paralog and
+split-gene information taken from the manual review of the S15C paralog-check
+results.
+
+Pipeline order
+--------------
+S15B (variant validation)  ->  S15C (paralog check)  ->  S15D (this script).
+S15D consumes two MANUALLY CURATED inputs produced after S15C:
+  - 67_corrected_features_analysis_reviewed.xlsx
+  - 67_paralog_check_results_reviewed.xlsx
+Both reviewed files are provided in the supplementary data deposit; the script
+cannot be re-run without them.
 
 """
 
@@ -15,7 +25,11 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import warnings
-warnings.filterwarnings('ignore')
+
+# Narrow suppression: silence only the pandas/openpyxl UserWarning chatter
+# rather than blanket-ignoring every warning, so genuine issues stay visible
+# on re-runs.
+warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 print('Ready!')
 
 BASE_DIR = 'input/'  # UPDATE THIS PATH
@@ -35,7 +49,6 @@ print(f'Megamatrix:         {os.path.exists(MEGAMATRIX_PATH)}')
 ## 1. Helpers & config
 """
 
-# No excluded strain in the 67-strain dataset (PS-11 was only relevant for 39 strains)
 EXCLUDED_STRAIN = None
 
 STRAIN_GROUPS = {
@@ -121,7 +134,9 @@ par_all_details    = pd.read_excel(PARALOG_PATH, sheet_name='ALL - all details')
 
 try:
     par_uniqueness = pd.read_excel(PARALOG_PATH, sheet_name='SPLIT uniqueness check')
-except: par_uniqueness = pd.DataFrame()
+except (ValueError, KeyError):
+    # Sheet is optional; absent in some paralog-result workbooks.
+    par_uniqueness = pd.DataFrame()
 
 print(f'GROUP features: {len(par_group_features)}, details: {len(par_group_details)}')
 print(f'Splits (manual checked): {len(par_splits)}')
@@ -133,22 +148,16 @@ for _, row in par_group_features.iterrows():
     paralog_lookup[(row['group'], frozenset(get_base_names(row['feature'])))] = row.to_dict()
 
 # ---- Build split verdict lookup from manual checks ----
-# CAREFUL: Eva's manual_check values have nuance:
-#   "yes..." = confirmed_split (gene is split, only 1 functional copy)
-#   "no..." or "not split..." = not_split (gene is NOT split)
-#       Sub-types within not_split (preserved in manual_check text):
-#       - "no, there are X copies" = true duplicate/paralog
-#       - "not split, but one gene is Xbp and second is Ybp" = size difference, not split
-#       - "No, two almost same length copies" = true duplicate
-#       - "No, two full length copies" = true duplicate
-#       - "not split, one full (and likely functional) copy present" = has functional copy
-#       - "not split, but two full length copies... and third part is short" = duplicate + fragment
-#       - "not split, is this two truncated genes" = uncertain, possibly both truncated
+# manual_check values are free-text verdicts mapped to three categories:
+#   confirmed_split ("yes...")      gene is split, one functional copy    -> blue
+#   not_split ("no..."/"not split") gene is not split                     -> yellow
+#   unchecked (no entry)            not yet reviewed                      -> orange
 #
-# The key distinction for annotation:
-#   confirmed_split -> "split gene (1 functional copy)" -> blue highlight
-#   not_split -> "YES, N copies in M/K group strains (manual note)" -> yellow highlight
-#   unchecked -> "LIKELY SPLIT - needs check" -> orange highlight
+# not_split covers several free-text sub-types, preserved verbatim in the
+# manual_check text but not distinguished by the code, e.g.:
+#   true duplicates ("two full-length copies", "X copies"),
+#   size differences ("one gene Xbp, second Ybp"),
+#   duplicate + fragment, or uncertain cases ("two truncated genes?").
 
 split_verdicts = {}  # (group, frozenset_bases) -> {verdict, manual_check, uniqueness}
 
@@ -187,9 +196,12 @@ print(f'\nSplit verdicts: {n_cs} confirmed split, {n_ns} not split, {n_uc} unche
 
 # Print verdicts for verification
 print(f'\n{"─"*80}')
+_VERDICT_TAG = {'confirmed_split': '[split]    ',
+                'not_split':       '[not split]',
+                'unchecked':       '[unchecked]'}
 for (grp, bases), info in sorted(split_verdicts.items(), key=lambda x: (x[0][0], x[1]['feature'])):
-    icon = '' if info['verdict'] == 'confirmed_split' else '' if info['verdict'] == 'not_split' else '🟠'
-    print(f'  {icon} {grp:8s} {info["feature"]:35s} → {info["verdict"]:20s} | {info["manual_check"][:55]}')
+    tag = _VERDICT_TAG.get(info['verdict'], '[unchecked]')
+    print(f'  {tag} {grp:8s} {info["feature"]:35s} -> {info["verdict"]:20s} | {info["manual_check"][:55]}')
 
 """
 ## 4. Annotation functions
@@ -390,8 +402,9 @@ for g in sorted(STRAIN_GROUPS.keys(), key=lambda x: (x.split('_')[0].replace('g'
     s = summary_stats.get(g, {'dp':0,'sp':0,'up':0,'da':0,'sa':0,'ua':0})
     print(f'{g:8s} | {s["dp"]:>4} {s["sp"]:>5} {s["up"]:>4} | {s["da"]:>4} {s["sa"]:>5} {s["ua"]:>4}')
 
-print(f'\n Blue   = confirmed split (1 functional copy)')
-print(f' Yellow = true duplicate (multiple genomic copies)')
-print(f' Green  = no universal copy (group-specific variant)')
-print(f' Red    = universal copy exists (common allele present in all strains)')
-print(f'🟠 Orange = likely split, not yet manually checked')
+print('\nCell fill colour legend (in the output Excel):')
+print('  Blue   = confirmed split (1 functional copy)')
+print('  Yellow = true duplicate (multiple genomic copies)')
+print('  Green  = no universal copy (group-specific variant)')
+print('  Red    = universal copy exists (common allele present in all strains)')
+print('  Orange = likely split, not yet manually checked')

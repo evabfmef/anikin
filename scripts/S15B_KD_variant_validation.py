@@ -17,99 +17,52 @@ reference variant (`.0`, typically from NCIB_3610), and report % amino acid iden
 - **<80% AA identity** → Strong variant divergence (like g50's tagF at 49%)
 - **Split/truncated** → Gene integrity issues
 
-"""
-# What the script does
+What the script does
+--------------------
+ 1. Setup: import BioPython/pandas, set input paths (megamatrix, features
+    analysis, GBK folder).
+ 2. Map strains to GBK files: hardcoded name mapping; verify all files found.
+ 3. Parse GBK files: read each GenBank with SeqIO into a gene->protein
+    dictionary (multiple entries per gene if duplicated); verify known genes
+    in NCIB_3610.
+ 4. Build validation tasks: for each group-specific variant, strip to the base
+    gene, look up all its variants, and pick a reference (preferring `.0` from
+    NCIB_3610, else the unsuffixed base gene). Multi-strain groups yield one
+    task per strain (up to 3) for averaging; multi-name genes are tried in
+    order.
+ 5. Extract proteins: return all matching protein copies for a given
+    strain/gene.
+ 6. Pairwise alignment: BLOSUM62 local alignment (pairwise2) of all
+    reference x group copy pairs; record % AA identity, length ratio, and
+    identity spread. The most divergent pair is taken as the primary result
+    (most likely the true variant).
+ 7. Average and classify: average identity across strains, then classify:
+      - Likely artefact  : >=95% AA identity AND >=80% length ratio
+                           (Roary clustering error)
+      - Likely truncated : <80% length ratio
+                           (assembly fragment / partial annotation)
+      - Variant          : <95% identity AND >=80% length ratio
+                           (genuinely divergent)
+ 8. Report failed lookups: variants not found in the GBK (renamed genes or
+    synonyms), for manual checking.
+ 9. Save results: variant_validation_results.xlsx (averaged results, raw
+    per-strain alignments, per-classification sheets, and a group summary).
+10. Visualise: identity histogram with threshold lines + per-group boxplot.
+11. Generate corrected features: annotate each variant with identity and
+    classification, remove artefacts (and their paired absent variants), keep
+    multi-copy genes with identity spread >10%, leave non-variant
+    presence/absence genes untouched. Outputs corrected_features_analysis.xlsx
+    with added `AA% vs ref` and `status` columns.
+12. Overview: print removed features and validated variants per group.
 
-### Step 1: Setup (Cells 1-2)
-
-Installs BioPython and pandas. Mounts Google Drive and sets paths to input files: megamatrix Excel, features analysis Excel, and the folder of GBK files.
-
-### Step 2: Map strain names to GBK filenames (Cell 3)
-
-67 strains have different naming conventions: PS-xxx strains use their strain name directly (e.g., `PS-130_edit2.gbk`), while others use GCF accessions (e.g., `NCIB_3610` → `GCF-029027845.1_edit2.gbk`). This cell contains the hardcoded mapping and verifies all 67 GBK files are found.
-
-### Step 3: Parse GBK files (Cell 4)
-
-For each of the 67 strains, reads the GenBank file using BioPython's `SeqIO` and builds a dictionary: `{gene_name → [{locus_tag, protein_sequence, start, end, strand, length}, ...]}`. Gene names are extracted from the `/gene` qualifier first, falling back to `[gene=XXX]` in the `/product` field (Prokka annotation format). A gene can have multiple entries if it appears as multiple copies in the genome. Runs a verification check on known genes in NCIB_3610.
-
-### Step 4: Build validation tasks (Cell 5)
-
-For each group-specific variant (e.g., `tagF.1` in g50) from the features analysis Excel:
-
-- Strips the variant number to get the base gene name (`tagF.1` → `tagF`)
-- Looks up all variants of that gene in the megamatrix (e.g., `tagF.0`, `.1`, `.2`, etc.)
-- Picks the reference variant to compare against, in order of preference:
-  1. `.0` from NCIB_3610
-  2. `.0` from whichever strain carries it
-  3. Lowest-numbered variant NCIB_3610 carries
-  4. **If no `.0` exists in the megamatrix:** uses the **base gene name** (e.g., `tagF`) from NCIB_3610 as reference — the absence of `.0` means Roary did not split out a separate `.0` cluster, but the gene itself is still present in genomes under its unsuffixed name. This comparison is methodologically identical to the `.0` case.
-  5. If the chosen reference equals the current variant: falls back to the most common other variant, or the base gene from NCIB_3610
-- For multi-strain groups (g50, g31, g55, etc.), creates separate tasks for each group strain (up to 3), so results can be averaged
-- Multi-name genes like `"tagF, rodC"` are split on commas: tries `tagF` first in the GBK, stops if found, otherwise tries `rodC`
-
-### Step 5: Extract proteins (Cell 6)
-
-Helper function `get_protein_for_gene`: given a strain and gene name(s), finds all matching protein sequences in the parsed GBK data. Tries exact match first. Returns all copies if the gene is duplicated.
-
-### Step 6: Pairwise alignment (Cell 7)
-
-For each validation task:
-
-- Computes all pairwise combinations between reference strain copies and group strain copies (e.g., if ref has 1 copy and group has 3 → 3 alignments)
-- Uses BLOSUM62 local alignment (BioPython `pairwise2`)
-- Calculates: % AA identity, alignment length, length ratio (shorter/longer × 100)
-- From all pairs, selects the **most divergent pair** as the primary result (lowest identity), because that's most likely the actual group-specific variant rather than a conserved copy matching `.0`
-- Records all pair identities in `all_pairs_identities` and `all_pairs_detail` columns, plus `identity_spread` (max − min identity across all pairs)
-- Reports multi-copy cases at the end for review
-
-### Step 7: Average and classify (Cell 8)
-
-For multi-strain groups, per-strain results are averaged: mean, min, and max identity across the 2-3 group strains tested. Then each variant is classified into three categories:
-
-| Classification | Criteria | Meaning |
-|:---|:---|:---|
-| **LIKELY ARTEFACT** | ≥95% AA identity AND ≥80% length ratio | Roary clustering error — should have been merged (Roary threshold was 80%) |
-| **LIKELY TRUNCATED** | <80% length ratio | Assembly fragment or partial annotation, not a full-length variant |
-| **VARIANT** | <95% AA identity AND ≥80% length ratio | Genuinely divergent protein, correctly split by Roary |
-
-### Step 8: Show failed lookups (Cell 9)
-
-Lists variants where the gene couldn't be found in the GBK file — these need manual checking. Common causes: gene was manually renamed in the GBK differently from the megamatrix, or the gene annotation uses a synonym.
-
-### Step 9: Save validation results (Cell 10)
-
-Writes `variant_validation_results.xlsx` with sheets:
-
-- **All Results**: averaged across strains, one row per variant
-- **Raw Per-Strain**: individual alignments for each group strain
-- **Likely Artefacts / Likely Truncated / Variants**: filtered sheets by classification
-- **Group Summary**: per-group counts of each classification
-
-### Step 10: Visualization (Cell 11)
-
-Histogram of all variant identities with threshold lines, plus per-group boxplot.
-
-### Step 11: Generate corrected features analysis (Cells 12a-c)
-
-Reads the validation results and the original features analysis, then for each group:
-
-- Annotates every variant with its AA identity and classification
-- Flags artefacts for removal (≥95% identity with ≥80% length ratio)
-- Safeguards multi-copy genes: if a variant was flagged as artefact but has `identity_spread` >10% across copies, it's kept (the high identity is from comparing the wrong copy)
-- Removes paired absent variants: if present variant `tagF.1` is an artefact, the corresponding absent `tagF.0` is also removed
-- Non-variant features (original presence/absence genes like `kdpA`) are kept untouched — they don't have a `.0` to compare against
-- Outputs `corrected_features_analysis.xlsx` with the same group-sheet structure as the original, plus two new columns: `AA% vs ref` and `status`
-
-### Step 12: Quick overview (Cell 13)
-
-Prints: (a) exactly which features were removed from each group, and (b) all validated variants per group with their identity percentages, by classification.
+Environment
+-----------
+Requires Bio.pairwise2, which was deprecated in Biopython 1.80 and is scheduled
+for removal in a future release. To reproduce the exact identity values
+reported in the manuscript, install Biopython <= 1.83.
 """
 
-"""
 ## 1. Setup and Installation
-"""
-
-# Install required packages
 
 import pandas as pd
 import re
@@ -119,24 +72,31 @@ from collections import defaultdict, Counter
 from Bio import pairwise2
 from Bio.Align import substitution_matrices
 import warnings
-warnings.filterwarnings('ignore')
+
+# Silence only the known Biopython pairwise2 deprecation notice and pandas /
+# openpyxl chatter. We deliberately do NOT blanket-suppress all warnings so
+# that genuine issues during re-runs remain visible.
+try:
+    from Bio import BiopythonDeprecationWarning
+    warnings.filterwarnings('ignore', category=BiopythonDeprecationWarning)
+except ImportError:
+    pass
+warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
 print("Setup complete!")
 
 """
 ## 2. Mount Google Drive and Set Paths
-
-Upload your files to Google Drive and set the paths below.
 """
 
 # ============================================================
 # SET YOUR PATHS HERE
 # ============================================================
-BASE_DIR = 'input/'  # UPDATE THIS PATH  # Change this!
+BASE_DIR = 'input/'
 
 MEGAMATRIX_PATH = os.path.join(BASE_DIR, '67_only_megamatrix_filtered_strains.xlsx')
 FEATURES_PATH = os.path.join(BASE_DIR, 'Features_analysis_67_output.xlsx')
-GBK_DIR = os.path.join(BASE_DIR, '67_strains_gbks')    # Folder with .gbk files
+GBK_DIR = os.path.join(BASE_DIR, '67_strains_gbks')
 
 # Output
 OUTPUT_DIR = os.path.join(BASE_DIR, 'validation_results')
@@ -149,10 +109,6 @@ print(f"Features exists: {os.path.isfile(FEATURES_PATH)}")
 
 """
 ## 3. Map Strain Names to GBK File Names
-
-All GBK files are named `<base>_edit2.gbk`.
-PS-xxx strains use their strain name; others use GCF accessions.
-**Edit `STRAIN_TO_FILENAME` if any files are named differently.**
 """
 
 # Load strain names from megamatrix
@@ -361,9 +317,17 @@ for j, g in enumerate(gene_list):
 
 # ============================================================
 # GROUP -> STRAIN MAPPING
-# Edit this if needed!
 # For singleton groups, just one strain.
-# For multi-strain groups, first strain is used for comparison.
+# For multi-strain groups, up to 3 REPRESENTATIVE strains are used here for
+# the pairwise-alignment validation (identity is then averaged across them).
+#
+# NOTE: this is intentionally a *subset* of the full group membership used in
+# script S15D (paralog annotation), which lists every strain in each group.
+# For example g50 lists 3 representatives here but all 5 members in S15D, and
+# g25_A lists 3 here vs the full 21 there. Alignment identity is stable across
+# group members, so a representative subset is sufficient (and much faster)
+# for validation, whereas paralog/copy-number annotation needs every strain.
+# The two mappings are therefore expected to differ.
 # ============================================================
 GROUP_STRAINS = {
     'g3': ['RO-F-3'],
@@ -595,6 +559,13 @@ def calculate_aa_identity(seq1, seq2):
     if not seq1 or not seq2:
         return None
 
+    # NOTE: This uses Bio.pairwise2 (deprecated in Biopython 1.80) rather than
+    # the newer Bio.Align.PairwiseAligner. This is deliberate: the two modules
+    # handle terminal mismatches and marginal local-alignment extents
+    # differently and do NOT return identical % identity / coverage values.
+    # The identity values reported in the manuscript were generated with
+    # pairwise2.localds, so it is retained here for exact reproducibility.
+    # Biopython is pinned to <=1.83 in requirements.txt for this reason.
     try:
         matrix = substitution_matrices.load("BLOSUM62")
         alignments = pairwise2.align.localds(
@@ -906,8 +877,7 @@ if len(df_results) > 0:
 """
 ## 9. Show Failed Lookups
 
-These are variants where the gene couldn't be found in the GFF or FAA file.
-May need manual curation of gene names.
+These are variants where the gene couldn't be found in the GFF or FAA file and need manual curation of gene names.
 """
 
 if failed:
@@ -1361,12 +1331,12 @@ for group_name, data in sorted(corrected_sheets.items()):
 
     print(f"\n  {group_name} ({len(variants)} validated variants):")
     for _, row in variants.iterrows():
-        icon = ''
+        tag = '[variant]  '
         if 'TRUNCATED' in row['status']:
-            icon = ''
+            tag = '[truncated]'
         elif row['status'].startswith('VARIANT'):
-            icon = ''
+            tag = '[variant]  '
         elif 'multi-copy' in row['status'].lower():
-            icon = ''
+            tag = '[multicopy]'
 
-        print(f"    {icon} {row['gene']:35s} {row['AA_identity']}")
+        print(f"    {tag} {row['gene']:35s} {row['AA_identity']}")
