@@ -1,18 +1,19 @@
 # Python packages required by the Python scripts in this repository.
 # Standard-library modules that ship with Python are not listed (os, sys, re, json, glob, csv, logging,...)
 # Versions below are those used in this study.
-# Python version used: 3.10 / 3.12
+# Python version used: 3.12
+# Install: pip install -r environment/requirements.txt
 
-pandas        # v2.0 / v2.2.2
-numpy         # v2.0.2
-biopython     # v1.83
-scikit-learn  # v1.6.1
-matplotlib    # v3.10.0
-seaborn       # v0.13.2
-networkx      # v3.6.1
-openpyxl      # v3.1.5
-xlsxwriter    # v3.2.9
-plotly        # v5.24.1
-kaleido       # v1.2.0
-cobra         # v0.26.0
-joblib        # v1.5.3
+pandas==2.2.2
+numpy==2.0.2
+biopython==1.83
+scikit-learn==1.6.1
+matplotlib==3.10.0
+seaborn==0.13.2
+networkx==3.6.1
+openpyxl==3.1.5
+xlsxwriter==3.2.9
+plotly==5.24.1
+kaleido==1.2.0
+cobra==0.26.0
+joblib==1.5.3
