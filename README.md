@@ -28,12 +28,11 @@ Average nucleotide identity (ANI; computed with fastANI), core-genome phylogeny,
 of strain pairs above it showed incompatibility, including lysis between strains sharing >99.9% ANI. Three analytical frameworks converged on a multi-layered KD architecture — recognition through cell-surface gene cassettes, antagonism via LXG toxin diversification and SPβ prophage mosaicism, and communication/exclusion through variation in the conjugative element ICEBs1, quorum sensing, and spore-coat composition.
 
 ### Conclusion
-The intraspecific ANI gap coincides with the functional boundary of social compatibility in *B. subtilis*, and incompatibility between highly related strains is driven less by core-genome divergence than by asymmetric carriage of mobile genetic elements. ANI is established as a practical predictor of kin group boundaries, the ANI gap is confirmed as a species-wide phenomenon, and accessory-genome mosaicism —
-particularly SPβ prophage variation, LXG polymorphic toxin/antitoxin variants, and asymmetric carriage of mobile-element cargo (PBSX, ICEBs1, skin element) — is identified as the primary determinant overriding genome-wide relatedness.
+The intraspecific ANI gap coincides with the functional boundary of social compatibility in *B. subtilis*, and incompatibility between highly related strains is driven less by core-genome divergence than by asymmetric carriage of mobile genetic elements. ANI is established as a practical predictor of kin group boundaries, the ANI gap is observed across the analysed species-wide genome collection, and accessory-genome mosaicism — particularly SPβ prophage variation, LXG polymorphic toxin/antitoxin variants, and asymmetric carriage of mobile-element cargo (PBSX, ICEBs1, skin element) — is identified as the primary determinant overriding genome-wide relatedness.
 
 ## Key Findings
 - Kin discrimination groups in *Bacillus subtilis* closely mirror genome-wide population structure and are governed by a multi-layered, modular accessory-genome architecture rather than by single conserved determinants.
-- A conserved species-wide "ANI gap" at ~99.5% ANI separates socially compatible and incompatible *B. subtilis* populations, and fastANI reliably predicts kin group association.
+- An "ANI gap" at ~99.5% ANI, observed across the analysed genome collection, separates socially compatible and incompatible *B. subtilis* populations. ANI ≥99.5% is necessary but not sufficient for social compatibility: fastANI predicts kin group boundaries but does not determine compatibility among strains above the threshold.
 - Closely related strains can remain socially incompatible despite sharing >99.9% genome identity, with incompatibility driven primarily by asymmetric carriage of SPβ prophages, LXG toxin systems, and other mobile genetic elements.
 
 ---
