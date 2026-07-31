@@ -9,20 +9,20 @@
 # =============================================================================
 
 suppressPackageStartupMessages({
-  library(readxl)
-  library(writexl)
+  library(readr)     # read_tsv / write_tsv (canonical)
+  library(writexl)   # xlsx copy for human inspection
   library(dplyr)
   library(tidyr)
 })
 
 # --- 1. Paths -----------------------------------------------------------------
-input_file <- "input/TA_pairs_results.xlsx"
-output_dir <- "output"
+input_file <- "data/ta_systems/input/TA_pairs_results.tsv"
+output_dir <- "data/ta_systems/output"
 
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # --- 2. Load and process TA pair data -----------------------------------------
-ta_pairs <- read_excel(input_file, sheet = "Split_product") %>%
+ta_pairs <- read_tsv(input_file, show_col_types = FALSE) %>%
   mutate(
     Ha_value       = as.numeric(Ha_value),
     E_value_BLAST  = as.numeric(E_value_BLAST),
@@ -84,9 +84,8 @@ unique_families <- ta_paired %>%
 cat("Unique BLAST families:",           n_distinct(unique_families$Blast_family), "\n")
 cat("BLAST family variants (BF_IDs):",  nrow(unique_families),                    "\n")
 
-write.csv(unique_families,
-          file.path(output_dir, "blast_family_reference.csv"),
-          row.names = FALSE)
+write_tsv(unique_families,
+          file.path(output_dir, "blast_family_reference.tsv"))
 
 # --- 5. Join BF_ID to TA pairs ------------------------------------------------
 ta_with_bf <- ta_paired %>%
@@ -128,6 +127,6 @@ cat("Rare variants (<5%):",           n_rare,      "\n")
 cat("Mean TA systems per strain:",    round(mean(rowSums(pa_mat)), 2), "\n")
 
 # --- 8. Save ------------------------------------------------------------------
-output_file <- file.path(output_dir, "TA_blast_family_variants_matrix.xlsx")
-write_xlsx(pa_matrix, output_file)
-cat("Saved to:", output_file, "\n")
+write_tsv(pa_matrix,  file.path(output_dir, "TA_blast_family_variants_matrix.tsv"))   # canonical
+write_xlsx(pa_matrix, file.path(output_dir, "TA_blast_family_variants_matrix.xlsx"))  # human copy
+cat("Saved to:", output_dir, "\n")

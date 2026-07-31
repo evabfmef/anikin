@@ -8,8 +8,8 @@ Identifies potential assembly artifacts among variant pairs that were *not*
 merged by the conservative clustering step (Script S5A).  Assembly artifacts
 arise when fragmented contigs split a single gene into two or more partial
 open reading frames that Roary treats as separate clusters.  These fragments
-typically show very high sequence identity (≥90–98 %) but limited alignment
-coverage (20–60 %), because one copy represents only a truncated portion of
+typically show very high sequence identity (>=90-98 %) but limited alignment
+coverage (20-60 %), because one copy represents only a truncated portion of
 the full-length gene.
 
 """
@@ -25,14 +25,20 @@ import numpy as np
 import pandas as pd
 
 # ---------------------------------------------------------------------------
+# Paths — change BASE_DIR to relocate the whole gene-clustering tree
+# ---------------------------------------------------------------------------
+BASE_DIR = Path("data/gene_clustering")
+REPORTS_DIR = BASE_DIR / "reports"
+
+# ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
-os.makedirs("results", exist_ok=True)
+os.makedirs(REPORTS_DIR, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("results/assembly_artifact_detection.log"),
+        logging.FileHandler(REPORTS_DIR / "assembly_artifact_detection.log"),
         logging.StreamHandler(),
     ],
 )
@@ -67,8 +73,11 @@ class AssemblyArtifactDetector:
 
     def __init__(self):
         self.config = {
-            "conservative_results_dir": "results/conservative_clustering_output",
-            "output_dir": "results/artifact_detection_output",
+            # Input: defaults to the small committed demo subset so a fresh
+            # clone runs out-of-the-box. For a full run, point this at
+            # BASE_DIR / "conservative_clustering_output" (the S5A output).
+            "conservative_results_dir": str(BASE_DIR / "sample_json"),
+            "output_dir": str(BASE_DIR / "artifact_detection_output"),
             "save_individual_results": True,
         }
         self.conservative_results: list[dict] = []
@@ -78,7 +87,7 @@ class AssemblyArtifactDetector:
         """Load per-gene JSON files from the conservative clustering step."""
         src = self.config["conservative_results_dir"]
         if not os.path.isdir(src):
-            logger.error("Directory not found: %s — run Script S5A first.", src)
+            logger.error("Directory not found: %s - run Script S5A first.", src)
             return False
         files = glob.glob(str(Path(src) / "*_conservative_results.json"))
         if not files:
@@ -226,12 +235,21 @@ class AssemblyArtifactDetector:
                     "Avg_Length_Ratio": c["avg_length_ratio"],
                 })
         out = Path(self.config["output_dir"]) / "02_assembly_artifact_detection_summary.xlsx"
+        artifact_df = pd.DataFrame(artifact_rows) if artifact_rows else None
         with pd.ExcelWriter(out, engine="openpyxl") as w:
             pd.DataFrame(gene_rows).to_excel(w, sheet_name="Gene_Summary", index=False)
-            if artifact_rows:
-                df = pd.DataFrame(artifact_rows)
-                df.to_excel(w, sheet_name="Artifact_Candidates", index=False)
+            if artifact_df is not None:
+                artifact_df.to_excel(w, sheet_name="Artifact_Candidates", index=False)
         logger.info("Summary saved to %s", out)
+
+        # Plain-TSV copy of the sheet consumed downstream by Script S5C
+        # (the .xlsx above remains the pipeline input; TSV is tab-separated so
+        # comma-containing gene names are preserved intact).
+        if artifact_df is not None:
+            artifact_tsv = (Path(self.config["output_dir"])
+                            / "02_assembly_artifact_Artifact_Candidates.tsv")
+            artifact_df.to_csv(artifact_tsv, sep="\t", index=False)
+            logger.info("TSV saved to %s", artifact_tsv)
 
 
 # ===========================================================================

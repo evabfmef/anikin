@@ -10,6 +10,8 @@ split genes).
 """
 
 import pandas as pd
+
+from kd_config import load_config, load_strain_aliases, describe
 import re, os, glob
 from collections import defaultdict
 from Bio import SeqIO
@@ -18,11 +20,29 @@ import warnings
 warnings.filterwarnings('ignore')
 print('Ready!')
 
-BASE_DIR = 'input/'  # UPDATE THIS PATH
-FEATURES_PATH = os.path.join(BASE_DIR, 'Features_analysis_67_output.xlsx')
-GBK_DIR = os.path.join(BASE_DIR, '67_strains_gbks')
-OUTPUT_DIR = os.path.join(BASE_DIR, '03_paralog_check_output_v5')
+# --- Configuration -------------------------------------------------------
+# Paths, the split-gene distance and the startup sanity-check strain list are
+# read from config_S14_S17.yml.
+#
+#   python S15C_paralog_check.py [--config=FILE] [--analysis=39|67]
+cfg = load_config()
+ANALYSIS = cfg["analysis"]
+
+GBK_DIR       = cfg["s15c"]["gbk_dir"]
+OUTPUT_DIR    = cfg["s15c"]["output_dir"]
+FEATURES_PATH = os.path.join(OUTPUT_DIR, cfg["s15c"]["features_file"])
+
+# Two copies of the same gene closer together than this are treated as a
+# candidate split gene rather than as independent paralogs.
+SPLIT_GENE_DISTANCE_BP = cfg["s15c"]["split_gene_distance_bp"]
+
+# Diagnostic only: strains printed at startup to confirm GBK filename mapping
+CHECK_STRAINS = list(cfg["s15c"].get("check_strains") or [])
+
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+print(describe(cfg))
+print(f"Split-gene distance: {SPLIT_GENE_DISTANCE_BP} bp")
 
 gbk_files = sorted(
     glob.glob(os.path.join(GBK_DIR, '*.gbk')) +
@@ -39,39 +59,9 @@ print(f'GBK files: {len(gbk_files)}')
 # STRAIN NAME <-> FILENAME MAPPING
 # Needed because non-PS strains have GCF accession filenames
 # ============================================================
-STRAIN_TO_FILENAME = {
-    '73': 'GCF-009662275.1',
-    'BS16045': 'GCF-001720505.1',
-    'KF24': 'GCF-030123145.1',
-    'MB8_B1': 'GCF-009662255.1',
-    'MB8_B7': 'GCF-009662215.1',
-    'MB9_B1': 'GCF-009662175.1',
-    'MB9_B6': 'GCF-009662375.1',
-    'NCIB_3610': 'GCF-029027845.1',
-    'NRS6085': 'GCF-905310975.2',
-    'NRS6099': 'GCF-905310985.2',
-    'NRS6103': 'GCF-905310995.2',
-    'NRS6105': 'GCF-905311425.2',
-    'NRS6118': 'GCF-905311435.2',
-    'NRS6121': 'GCF-905315035.2',
-    'NRS6127': 'GCF-905315045.2',
-    'NRS6128': 'GCF-905315055.2',
-    'NRS6132': 'GCF-905315015.2',
-    'NRS6145': 'GCF-905315685.2',
-    'NRS6153': 'GCF-905315705.2',
-    'NRS6160': 'GCF-905315715.2',
-    'NRS6181': 'GCF-905318255.2',
-    'NRS6186': 'GCF-905319135.2',
-    'NRS6187': 'GCF-905319545.2',
-    'NRS6202': 'GCF-905319535.2',
-    'P8_B1': 'GCF-009662435.1',
-    'P9_B1': 'GCF-009662455.1',
-    'RO-A-4': 'RO-A-4',
-    'RO-DD-2': 'RO-DD-2',
-    'RO-F-3': 'RO-F-3',
-    'RO-FF-1': 'RO-FF-1',
-    'RS-D-2': 'RS-D-2',
-}
+# Strain -> assembly-filename map from metadata (reviewer issue #14).
+# In-house genomes without a GCF accession map to their own name.
+STRAIN_TO_FILENAME = load_strain_aliases(cfg)
 
 # Build reverse mapping: filename_base -> strain_name
 FILENAME_TO_STRAIN = {v: k for k, v in STRAIN_TO_FILENAME.items()}
@@ -148,8 +138,7 @@ avg = sum(len(v) for v in strain_genes.values()) / len(strain_genes)
 print(f'Average genes per strain: {avg:.0f}')
 
 # Verify that key strains are present with correct names
-check_strains = ['NCIB_3610', 'PS-216', 'NRS6085', '73', 'BS16045', 'PS-108']
-for s in check_strains:
+for s in CHECK_STRAINS:
     if s in strain_genes:
         print(f'   {s}: {len(strain_genes[s])} genes')
     else:
@@ -209,37 +198,9 @@ print(f'  Without variant suffix (plain genes): {n_no_var}')
 """
 
 # KD group assignments for 67 strains (26 groups)
-# From the 67-strain variant validation (KD_variant_validation_gbk_v6)
-group_strains = {
-    'g3':    ['RO-F-3'],
-    'g4':    ['RS-D-2'],
-    'g5':    ['RO-DD-2'],
-    'g7':    ['RO-A-4'],
-    'g19':   ['NRS6085'],
-    'g25_A': ['PS-13', 'PS-14', 'PS-18', 'PS-30', 'PS-31', 'PS-51', 'PS-65',
-              'PS-68', 'PS-96', 'PS-168', 'PS-210', 'PS-216', 'PS-233', 'PS-237',
-              'MB8_B1', 'MB8_B7', 'MB9_B1', 'MB9_B6', 'P8_B1', 'P9_B1', 'NCIB_3610'],
-    'g29':   ['BS16045'],
-    'g30':   ['NRS6105', 'NRS6145'],
-    'g31':   ['PS-52', 'PS-53'],
-    'g34':   ['NRS6128'],
-    'g39':   ['PS-209'],
-    'g44':   ['PS-196'],
-    'g50':   ['PS-108', 'PS-109', 'PS-119', 'PS-130', 'PS-131'],
-    'g52':   ['NRS6160'],
-    'g53':   ['PS-20', 'PS-24', 'PS-25'],
-    'g54':   ['PS-160'],
-    'g55':   ['PS-93', 'PS-95'],
-    'g56':   ['PS-217', 'PS-218'],
-    'g57':   ['PS-15'],
-    'g60_A': ['PS-64', 'PS-194', 'NRS6186', 'NRS6181'],
-    'g60_B': ['NRS6132', 'NRS6099', 'NRS6187'],
-    'g63_A': ['PS-54', 'PS-55', 'PS-149', 'NRS6103', 'NRS6118', 'NRS6127', 'NRS6153'],
-    'g82':   ['RO-FF-1'],
-    'g92':   ['KF24'],
-    'g95':   ['PS-263'],
-    'g96':   ['73'],
-}
+KD_GROUPS_FILE = cfg["metadata"]["kd_groups"]
+_kd = pd.read_csv(KD_GROUPS_FILE, sep="\t")
+group_strains = _kd.groupby("kd_group")["strain"].apply(list).to_dict()
 
 # Verify all group strains exist in parsed data
 all_strain_names = sorted(strain_genes.keys())
@@ -269,8 +230,6 @@ extras = sorted(set(all_strain_names) - grouped)
 if extras:
     print(f'\nStrains in GBK folder but not in any group ({len(extras)}): {extras}')
     print('  (These are fine — they will be used for ALL-STRAINS context checks)')
-
-SPLIT_GENE_DISTANCE_BP = 5000
 
 def analyze_copies(all_copies_sorted):
     """Analyze a list of copies (sorted by start) and return distances, strands, flags."""
@@ -477,7 +436,7 @@ print(f'  Paralogs only outside group: {len(only_outside)}')
 
 import pandas as pd
 
-out_file = os.path.join(OUTPUT_DIR, '67_paralog_check_results.xlsx')
+out_file = os.path.join(OUTPUT_DIR, f'{ANALYSIS}_paralog_check_results.xlsx')
 
 with pd.ExcelWriter(out_file, engine='openpyxl') as w:
     # ---- GROUP SCOPE ----

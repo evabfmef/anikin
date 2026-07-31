@@ -31,12 +31,14 @@ from glob import glob
 from Bio import SeqIO
 import cobra
 import subprocess
+import shutil
+import sys
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-WORK_DIR = "./GEM"
-GENOMES_DIR = os.path.join(WORK_DIR, "genomes")
+WORK_DIR = "data/GEM"
+GENOMES_DIR = "data/raw/gbk"
 PROTS_DIR = os.path.join(WORK_DIR, "genomes", "prots")
 NUCL_DIR = os.path.join(WORK_DIR, "genomes", "nucl")
 BBH_DIR = os.path.join(WORK_DIR, "bbh")
@@ -44,12 +46,12 @@ REF_DIR = os.path.join(WORK_DIR, "genomes", "reference_strain")
 
 REFERENCE_ID = "iBB1018"
 REFERENCE_MODEL = os.path.join(WORK_DIR, "iBB1018.xml")
-STRAIN_INFO = os.path.join(GENOMES_DIR, "StrainInformation.xlsx")
+STRAIN_INFO = os.path.join(WORK_DIR, "StrainInformation.tsv")
 
 # BLAST parameters
 EVALUE = 0.001
 COVERAGE_THRESHOLD = 0.25
-IDENTITY_THRESHOLD > 80.0
+IDENTITY_THRESHOLD = 80.0
 
 # Artificial genes to exclude from homology analysis
 ARTIFICIAL_GENES = ["GROWMATCH", "GAPFILLING"]
@@ -58,10 +60,19 @@ os.makedirs(WORK_DIR, exist_ok=True)
 for d in [GENOMES_DIR, PROTS_DIR, NUCL_DIR, BBH_DIR]:
     os.makedirs(d, exist_ok=True)
 
+# Verify BLAST+ is installed and record its version for provenance
+for _tool in ("makeblastdb", "blastp"):
+    if shutil.which(_tool) is None:
+        sys.exit(f"ERROR: '{_tool}' not found on PATH. Install NCBI BLAST+.")
+_ver = subprocess.run(["blastp", "-version"], capture_output=True, text=True).stdout.strip()
+with open(os.path.join(WORK_DIR, "blast_version.txt"), "w") as _vf:
+    _vf.write(_ver + "\n")
+print(_ver)
+
 # ---------------------------------------------------------------------------
 # 1. Load strain information
 # ---------------------------------------------------------------------------
-strain_info = pd.read_excel(STRAIN_INFO)
+strain_info = pd.read_csv(STRAIN_INFO, sep="\t")
 target_strains = list(strain_info["NCBI ID"])
 print(f"Target strains: {len(target_strains)}")
 
@@ -117,8 +128,11 @@ def make_blast_db(strain_id, folder=PROTS_DIR, db_type="prot"):
     db_check = os.path.join(folder, f"{strain_id}.fa.pin")
     if os.path.exists(db_check):
         return
-    cmd = f"makeblastdb -in {folder}/{strain_id}.{ext} -dbtype {db_type}"
-    os.system(cmd)
+    subprocess.run(
+        ["makeblastdb", "-in", f"{folder}/{strain_id}.{ext}",
+         "-dbtype", db_type],
+        check=True, capture_output=True, text=True,
+    )
 
 
 for strain in target_strains:
@@ -135,9 +149,13 @@ def run_blastp(seq, db, in_folder=PROTS_DIR, out_folder=BBH_DIR,
     out_file = os.path.join(out_folder, f"{seq}_vs_{db}.txt")
     if os.path.exists(out_file):
         return out_file
-    cmd = (f"blastp -db {in_folder}/{db}.fa -query {in_folder}/{seq}.fa "
-           f"-out {out_file} -evalue {evalue} -outfmt 6 -num_threads {threads}")
-    os.system(cmd)
+    subprocess.run(
+        ["blastp", "-db", f"{in_folder}/{db}.fa",
+         "-query", f"{in_folder}/{seq}.fa",
+         "-out", out_file, "-evalue", str(evalue),
+         "-outfmt", "6", "-num_threads", str(threads)],
+        check=True, capture_output=True, text=True,
+    )
     return out_file
 
 

@@ -6,14 +6,30 @@ Author: Eva Stare
 
 Identifies and clusters redundant gene variants in a pangenome presence–absence
 matrix using pairwise amino acid sequence similarity. Variant pairs meeting
-conservative thresholds (≥80% identity, ≥50% coverage) are merged.
+conservative thresholds (mean ≥80% identity, mean ≥50% coverage relative to the
+shorter sequence) are merged.
 
+Acceptance is based on the MEAN across all pairwise comparisons between two
+variant groups; per-cluster minimum identity and coverage are also recorded in
+the summary output so individual weaker pairs remain auditable.
+
+INPUTS (see _setup_config for paths):
+  - mega_matrix.tsv       : Roary presence–absence matrix (Feature_Name + strains)
+  - locus_tag_mapping.tsv : gene name/synonym -> locus tag
+  - strain_list.tsv       : strain name -> GenBank filename
+  - gbk_files/             : per-strain GenBank annotations
+
+OUTPUTS (results/conservative_clustering_output/):
+  - <gene>_conservative_results.json      : per-gene comparisons + clusters
+  - 01_conservative_clustering_summary.xlsx : Gene_Summary + Conservative_Clusters
+
+NOTE: this step emits only pairwise (2-variant) clusters; transitive
+consolidation into connected components is performed downstream in Script S5C.
 """
 
 import json
 import glob
 import logging
-import multiprocessing as mp
 import os
 import re
 from collections import defaultdict
@@ -26,14 +42,21 @@ from Bio.Align import PairwiseAligner
 from Bio.Seq import Seq
 
 # ---------------------------------------------------------------------------
+# Paths — change BASE_DIR to relocate the whole gene-clustering tree
+# ---------------------------------------------------------------------------
+BASE_DIR = Path("data/gene_clustering")
+RAW_DIR = Path("data/raw")
+REPORTS_DIR = BASE_DIR / "reports"
+
+# ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
-os.makedirs("results", exist_ok=True)
+os.makedirs(REPORTS_DIR, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("results/conservative_gene_clustering.log"),
+        logging.FileHandler(REPORTS_DIR / "conservative_gene_clustering.log"),
         logging.StreamHandler(),
     ],
 )
@@ -72,21 +95,20 @@ class ConservativeGeneVariantClustering:
         """Return default configuration dictionary."""
         return {
             # Input paths (adjust to local directory structure)
-            "mega_matrix_file": "data/mega_matrix.xlsx",
-            "locus_tag_file": "data/locus_tag_mapping.xlsx",
-            "strain_list_file": "data/strain_list.xlsx",
-            "gbk_folder_path": "data/gbk_files",
+            "mega_matrix_file": str(BASE_DIR / "inputs" / "mega_matrix.tsv"),
+            "locus_tag_file": str(BASE_DIR / "inputs" / "locus_tag_mapping.tsv"),
+            "strain_list_file": str(BASE_DIR / "inputs" / "strain_list.tsv"),
+            "gbk_folder_path": str(RAW_DIR / "gbk"),
             # Output paths
-            "output_dir": "results/conservative_clustering_output",
-            "sequences_dir": "results/sequences_conservative",
+            "output_dir": str(BASE_DIR / "conservative_clustering_output"),
+            "sequences_dir": str(BASE_DIR / "sequences_conservative"),
             # Clustering thresholds
             "min_aa_identity": 80.0,
             "min_coverage": 50.0,
             # Sampling settings
             "max_sequences_per_variant": 10,
             "min_sequences_for_sampling": 10,
-            # Performance
-            "max_workers": min(32, mp.cpu_count()),
+            # Performance (analysis runs serially; no parallel workers used)
             "save_detailed_comparisons": True,
             "save_sequences_to_disk": True,
             "gbk_extensions": [".gbk", ".gb", ".gbff"],
@@ -106,14 +128,18 @@ class ConservativeGeneVariantClustering:
     def load_data(self) -> None:
         """Load the mega-matrix, locus-tag mapping, and strain list."""
         logger.info("Loading data files …")
-        self.mega_matrix = pd.read_excel(
-            self.config["mega_matrix_file"], sheet_name=0
+        # Canonical inputs are TSV. The mega-matrix keeps default dtype
+        # inference (0/1 presence columns -> int); the mapping/strain tables
+        # are read as strings so identifiers are never coerced (e.g. a numeric
+        # strain name staying text).
+        self.mega_matrix = pd.read_csv(
+            self.config["mega_matrix_file"], sep="\t"
         )
-        self.locus_mapping = pd.read_excel(
-            self.config["locus_tag_file"], sheet_name=0
+        self.locus_mapping = pd.read_csv(
+            self.config["locus_tag_file"], sep="\t", dtype=str
         )
-        self.strain_mapping = pd.read_excel(
-            self.config["strain_list_file"], sheet_name=0
+        self.strain_mapping = pd.read_csv(
+            self.config["strain_list_file"], sep="\t", dtype=str
         )
         self._process_data()
 
@@ -245,7 +271,12 @@ class ConservativeGeneVariantClustering:
             return []
         row = row.iloc[0]
         strain_cols = [c for c in self.mega_matrix.columns if c != "Feature_Name"]
-        return [s for s in strain_cols if pd.notna(row.get(s)) and row[s] == 1]
+        # pd.to_numeric guards against presence stored as the string "1" after an
+        # Excel round-trip; for an integer 0/1 matrix this is identical to row[s] == 1.
+        return [
+            s for s in strain_cols
+            if pd.notna(row.get(s)) and pd.to_numeric(row[s], errors="coerce") == 1
+        ]
 
     def extract_sequences(self, base_gene: str, variants: list[str]) -> dict:
         """Extract amino acid sequences for all variants of a gene."""
@@ -256,6 +287,7 @@ class ConservativeGeneVariantClustering:
                 locus_tag = self.gene_to_locus[name]
                 break
         if locus_tag is None:
+            logger.warning("No locus tag found for gene '%s'; skipping.", base_gene)
             return {}
 
         result: dict[str, list[dict]] = {}
@@ -393,7 +425,13 @@ class ConservativeGeneVariantClustering:
         return results
 
     def cluster(self, comparisons: list[dict]) -> list[dict]:
-        """Apply identity and coverage thresholds to form merge clusters."""
+        """Apply identity and coverage thresholds to form merge clusters.
+
+        Each accepted comparison yields one 2-variant cluster. Transitive
+        consolidation of chained pairs (A–B, B–C -> {A,B,C}) is performed
+        downstream in Script S5C via connected-component analysis; this method
+        deliberately emits only pairwise clusters.
+        """
         clusters = []
         for comp in comparisons:
             if (comp["identity_mean"] >= self.config["min_aa_identity"]
@@ -500,11 +538,24 @@ class ConservativeGeneVariantClustering:
                     "Num_Comparisons": c["num_comparisons"],
                 })
         out = Path(self.config["output_dir"]) / "01_conservative_clustering_summary.xlsx"
+        gene_df = pd.DataFrame(rows)
+        cluster_df = pd.DataFrame(cluster_rows) if cluster_rows else None
         with pd.ExcelWriter(out, engine="openpyxl") as w:
-            pd.DataFrame(rows).to_excel(w, sheet_name="Gene_Summary", index=False)
-            if cluster_rows:
-                pd.DataFrame(cluster_rows).to_excel(w, sheet_name="Conservative_Clusters", index=False)
+            gene_df.to_excel(w, sheet_name="Gene_Summary", index=False)
+            if cluster_df is not None:
+                cluster_df.to_excel(w, sheet_name="Conservative_Clusters", index=False)
         logger.info("Summary saved to %s", out)
+
+        # Plain-TSV copies of the sheets consumed downstream by Script S5C
+        # (the .xlsx above remains the pipeline input; these are for readability
+        # and use by TSV-based tools). tab-separated, no index.
+        gene_tsv = Path(self.config["output_dir"]) / "01_conservative_clustering_Gene_Summary.tsv"
+        gene_df.to_csv(gene_tsv, sep="\t", index=False)
+        logger.info("TSV saved to %s", gene_tsv)
+        if cluster_df is not None:
+            cluster_tsv = Path(self.config["output_dir"]) / "01_conservative_clustering_Conservative_Clusters.tsv"
+            cluster_df.to_csv(cluster_tsv, sep="\t", index=False)
+            logger.info("TSV saved to %s", cluster_tsv)
 
 
 # ===========================================================================

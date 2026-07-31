@@ -13,12 +13,12 @@ S15B (variant validation)  ->  S15C (paralog check)  ->  S15D (this script).
 S15D consumes two MANUALLY CURATED inputs produced after S15C:
   - 67_corrected_features_analysis_reviewed.xlsx
   - 67_paralog_check_results_reviewed.xlsx
-Both reviewed files are provided in the supplementary data deposit; the script
-cannot be re-run without them.
 
 """
 
 import pandas as pd
+
+from kd_config import load_config, describe
 import re, os
 from collections import defaultdict
 from openpyxl import load_workbook
@@ -28,19 +28,28 @@ import warnings
 
 # Narrow suppression: silence only the pandas/openpyxl UserWarning chatter
 # rather than blanket-ignoring every warning, so genuine issues stay visible
-# on re-runs.
 warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 print('Ready!')
 
-BASE_DIR = 'input/'  # UPDATE THIS PATH
+# --- Configuration -------------------------------------------------------
+#   python S15D_paralog_annotation.py [--config=FILE] [--analysis=39|67]
+cfg = load_config()
+ANALYSIS = cfg["analysis"]
 
-CORRECTED_PATH  = os.path.join(BASE_DIR, '04_paralog_input_data/67_corrected_features_analysis_reviewed.xlsx')   # OUTPUT from 02 script (v6)
-PARALOG_PATH    = os.path.join(BASE_DIR, '03_paralog_check_output_v5/67_paralog_check_results_reviewed.xlsx')  # OUTPUT from 03 script (manually reviewed!)
-MEGAMATRIX_PATH = os.path.join(BASE_DIR, '04_paralog_input_data/67_mega_matrix_full.xlsx')
-OUTPUT_DIR      = os.path.join(BASE_DIR, '04_paralog_check_output')
-OUTPUT_PATH     = os.path.join(OUTPUT_DIR, '67_corrected_features_annotated_paralogs.xlsx')
+# Inputs are the DIRECT outputs of the preceding scripts, so the pipeline
+# runs end-to-end without hand-edited files.
+# NOTE: in the published analysis, both of these were MANUALLY REVIEWED between
+# steps (see metadata/manual_curation.tsv). An automated re-run reproduces the
+# pipeline but not those manual corrections.
+OUTPUT_DIR      = cfg["s15d"]["output_dir"]
+CORRECTED_PATH  = os.path.join(OUTPUT_DIR, cfg["s15d"]["corrected_file"])
+PARALOG_PATH    = os.path.join(OUTPUT_DIR, cfg["s15d"]["paralog_file"])
+MEGAMATRIX_PATH = (cfg["s15d"]["megamatrix_67"] if ANALYSIS == "67"
+                   else cfg["s15d"]["megamatrix_39"])
+OUTPUT_PATH     = os.path.join(OUTPUT_DIR, cfg["s15d"]["output_file"])
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+print(describe(cfg))
 print(f'Corrected features: {os.path.exists(CORRECTED_PATH)}')
 print(f'Paralog results:    {os.path.exists(PARALOG_PATH)}')
 print(f'Megamatrix:         {os.path.exists(MEGAMATRIX_PATH)}')
@@ -49,38 +58,11 @@ print(f'Megamatrix:         {os.path.exists(MEGAMATRIX_PATH)}')
 ## 1. Helpers & config
 """
 
-EXCLUDED_STRAIN = None
+EXCLUDED_STRAIN = cfg["s15d"].get("excluded_strain")
 
-STRAIN_GROUPS = {
-    'g3':    ['RO-F-3'],
-    'g4':    ['RS-D-2'],
-    'g5':    ['RO-DD-2'],
-    'g7':    ['RO-A-4'],
-    'g19':   ['NRS6085'],
-    'g25_A': ['PS-13', 'PS-14', 'PS-18', 'PS-30', 'PS-31', 'PS-51', 'PS-65',
-              'PS-68', 'PS-96', 'PS-168', 'PS-210', 'PS-216', 'PS-233', 'PS-237',
-              'MB8_B1', 'MB8_B7', 'MB9_B1', 'MB9_B6', 'P8_B1', 'P9_B1', 'NCIB_3610'],
-    'g29':   ['BS16045'],
-    'g30':   ['NRS6105', 'NRS6145'],
-    'g31':   ['PS-52', 'PS-53'],
-    'g34':   ['NRS6128'],
-    'g39':   ['PS-209'],
-    'g44':   ['PS-196'],
-    'g50':   ['PS-108', 'PS-109', 'PS-119', 'PS-130', 'PS-131'],
-    'g52':   ['NRS6160'],
-    'g53':   ['PS-20', 'PS-24', 'PS-25'],
-    'g54':   ['PS-160'],
-    'g55':   ['PS-93', 'PS-95'],
-    'g56':   ['PS-217', 'PS-218'],
-    'g57':   ['PS-15'],
-    'g60_A': ['PS-64', 'PS-194', 'NRS6186', 'NRS6181'],
-    'g60_B': ['NRS6132', 'NRS6099', 'NRS6187'],
-    'g63_A': ['PS-54', 'PS-55', 'PS-149', 'NRS6103', 'NRS6118', 'NRS6127', 'NRS6153'],
-    'g82':   ['RO-FF-1'],
-    'g92':   ['KF24'],
-    'g95':   ['PS-263'],
-    'g96':   ['73'],
-}
+KD_GROUPS_FILE = cfg["metadata"]["kd_groups"]
+_kd = pd.read_csv(KD_GROUPS_FILE, sep="\t")
+STRAIN_GROUPS = _kd.groupby("kd_group")["strain"].apply(list).to_dict()
 
 VARPAT = re.compile(r'^(.+)\.(\d+)$')
 
@@ -102,7 +84,7 @@ print(f'Total strains in groups: {sum(len(v) for v in STRAIN_GROUPS.values())}')
 ## 2. Load megamatrix
 """
 
-mega = pd.read_excel(MEGAMATRIX_PATH, sheet_name='Sheet1')
+mega = pd.read_csv(MEGAMATRIX_PATH, sep="\t")
 strain_cols = [c for c in mega.columns if c != 'Feature_Name']
 
 # In the 67-strain dataset there is no PS-11 to exclude

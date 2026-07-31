@@ -7,7 +7,7 @@ Generates a binary reaction presence/absence matrix from strain-specific
 genome-scale metabolic models (GEMs) produced by S10B_GEM_analysis_part2.py.
 
 """
-
+import os
 import cobra
 from glob import glob
 import pandas as pd
@@ -15,8 +15,10 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-MODELS_DIR = "./Models"
-OUTPUT_FILE = "reaction_matrix.xlsx"
+WORK_DIR = "data/GEM"
+MODELS_DIR = f"{WORK_DIR}/Models"
+OUTPUT_FILE = f"{WORK_DIR}/reaction_matrix.tsv"      # canonical TSV
+OUTPUT_XLSX = f"{WORK_DIR}/reaction_matrix.xlsx"     # human copy
 
 # ---------------------------------------------------------------------------
 # 1. Load models and collect reactions
@@ -29,7 +31,7 @@ model_reactions = {}
 
 for path in model_files:
     model = cobra.io.load_json_model(path)
-    strain_name = path.split("/")[-1].replace(".json", "")
+    strain_name = os.path.basename(path).replace(".json", "")
     rxns = {r.id for r in model.reactions}
     model_reactions[strain_name] = rxns
     all_reactions.update(rxns)
@@ -54,5 +56,6 @@ print(f"Reaction matrix shape: {reaction_matrix.shape}")
 # ---------------------------------------------------------------------------
 # 3. Save output
 # ---------------------------------------------------------------------------
-reaction_matrix.to_excel(OUTPUT_FILE)
+reaction_matrix.to_csv(OUTPUT_FILE, sep="\t")
+reaction_matrix.to_excel(OUTPUT_XLSX)
 print(f"Saved to {OUTPUT_FILE}")

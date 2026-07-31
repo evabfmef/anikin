@@ -7,57 +7,101 @@ For each kin discrimination (KD) group, identifies:
   - Features uniquely present in all group members and absent in all non-members
   - Features uniquely absent in all group members but present in all non-members
 
+This is a descriptive exact-pattern criterion, not a statistical test: a feature
+qualifies only under perfect co-segregation with group membership. Because the
+criterion involves no test of significance, its interpretation depends on group
+size. In a multi-strain group, perfect co-segregation across all members is
+evidence of a shared determinant. In a single-strain group the criterion reduces
+to identifying that strain's private accessory content, and in two-strain groups
+it is satisfied readily by chance; features from such groups are reported for
+completeness but are strain-specific rather than group-associated, and are not
+treated as equivalent evidence. Groups are therefore annotated by size class
+(SINGLETON, PAIR, MULTI) in a separate summary file (group_size_summary.xlsx /
+group_summary.tsv); the feature workbook consumed by S15B-S15D is unchanged. 
+Statistically supported associations are assessed separately by the pairwise 
+enrichment analysis, which operates at the interaction level rather than the group level.
+
+The input matrix is validated to contain only 0 and 1 before analysis. This
+matters because pandas treats NaN as truthy, so an all-missing column would
+otherwise satisfy .all() and be reported as uniquely present.
 """
 
-import pandas as pd
 import os
+
+import pandas as pd
+
+from kd_config import load_config, load_kd_groups, describe
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-INPUT_FILE = "input/megamatrix_filtered_strains.xlsx"
-OUTPUT_FILE = "output/features_analysis_results.xlsx"
+#   python S15A_group_specific_features.py [--config=FILE] [--analysis=39|67]
+cfg = load_config()
+ANALYSIS = cfg["analysis"]
 
-STRAIN_GROUPS = {
-    "g3":    ["RO-F-3"],
-    "g4":    ["RS-D-2"],
-    "g5":    ["RO-DD-2"],
-    "g7":    ["RO-A-4"],
-    "g19":   ["NRS6085"],
-    "g25_A": ["PS-65", "NRS6202", "PS-14", "NCIB_3610", "P8_B1", "PS-233",
-              "MB8_B7", "NRS6118", "PS-216", "P9_B1", "NRS6121", "PS-13",
-              "PS-237", "PS-168", "PS-96", "PS-30", "NRS6153", "PS-68",
-              "PS-18", "PS-210", "PS-31"],
-    "g29":   ["BS16045"],
-    "g30":   ["NRS6105", "NRS6145"],
-    "g31":   ["PS-52", "PS-53"],
-    "g34":   ["NRS6128"],
-    "g39":   ["PS-209"],
-    "g44":   ["PS-196"],
-    "g50":   ["PS-108", "PS-109", "PS-131", "PS-119", "PS-130"],
-    "g52":   ["NRS6160"],
-    "g53":   ["PS-24", "PS-25", "PS-20"],
-    "g54":   ["PS-160"],
-    "g55":   ["PS-93", "PS-95"],
-    "g56":   ["PS-217", "PS-218"],
-    "g57":   ["PS-15"],
-    "g60_A": ["NRS6181", "PS-194", "NRS6186", "PS-64"],
-    "g60_B": ["NRS6132", "NRS6099", "NRS6187"],
-    "g63_A": ["PS-55", "PS-149", "MB9_B1", "MB8_B1", "NRS6127", "MB9_B6",
-              "NRS6103"],
-    "g82":   ["RO-FF-1"],
-    "g92":   ["KF24"],
-    "g95":   ["PS-263"],
-    "g96":   ["73"],
-}
+INPUT_FILE = (cfg["s15a"]["input_file_67"] if ANALYSIS == "67"
+              else cfg["s15a"]["input_file_39"])
+OUTPUT_DIR   = cfg["s15a"]["output_dir"]
+OUTPUT_FILE  = os.path.join(OUTPUT_DIR, cfg["s15a"]["output_file"])
+# Written separately: S15B and S15C parse every sheet of OUTPUT_FILE as a KD group.
+SUMMARY_FILE = os.path.join(OUTPUT_DIR, cfg["s15a"]["summary_file"])
 
-os.makedirs("output", exist_ok=True)
+# Group memberships from metadata/ (version-controlled TSV).
+STRAIN_GROUPS = load_kd_groups(cfg)
+
+# Size-class boundaries; the exact-pattern criterion is descriptive and its
+# interpretation depends on group size (see module docstring).
+SINGLETON_MAX = cfg["s15a"]["size_classes"]["singleton_max"]
+PAIR_MAX      = cfg["s15a"]["size_classes"]["pair_max"]
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+print(describe(cfg))
 
 # ---------------------------------------------------------------------------
 # Analysis
 # ---------------------------------------------------------------------------
-df = pd.read_excel(INPUT_FILE, index_col=0)
+df = pd.read_csv(INPUT_FILE, sep="\t", index_col=0)
 print(f"Loaded: {df.shape[0]} strains x {df.shape[1]} features")
+
+# --- Validate that the matrix is strictly binary -------------------------
+# Fail immediately on missing or non-binary values: pandas evaluates NaN as
+# truthy, so .all() on an all-missing column would return True and the feature
+# would be misreported as uniquely present.
+n_missing = int(df.isna().sum().sum())
+if n_missing:
+    bad_cols = df.columns[df.isna().any()].tolist()
+    raise ValueError(
+        f"Matrix contains {n_missing} missing value(s) in {len(bad_cols)} "
+        f"column(s), e.g. {bad_cols[:5]}. Presence/absence must be complete."
+    )
+
+observed = set(pd.unique(df.values.ravel()))
+non_binary = observed - {0, 1}
+if non_binary:
+    raise ValueError(
+        f"Matrix contains non-binary value(s): {sorted(non_binary)[:10]}. "
+        f"Only 0 and 1 are permitted."
+    )
+
+print(f"Matrix validated: strictly binary, no missing values")
+
+# --- Group size classes --------------------------------------------------
+# The exact-pattern criterion is descriptive and its interpretation depends on
+# group size; see module docstring.
+def size_class(n):
+    """Classify a KD group by the number of member strains."""
+    if n <= SINGLETON_MAX:
+        return "SINGLETON"
+    if n <= PAIR_MAX:
+        return "PAIR"
+    return "MULTI"
+
+
+group_sizes = {g: len(s) for g, s in STRAIN_GROUPS.items()}
+group_classes = {g: size_class(n) for g, n in group_sizes.items()}
+
+n_by_class = pd.Series(group_classes).value_counts().to_dict()
+print(f"KD groups by size class: {n_by_class}")
 
 features_unique_to_group = {}
 features_absent_in_group = {}
@@ -80,7 +124,8 @@ for group_name, strains in STRAIN_GROUPS.items():
     features_unique_to_group[group_name] = unique_features
     features_absent_in_group[group_name] = absent_features
 
-    print(f"{group_name}: {len(unique_features)} unique, {len(absent_features)} absent")
+    print(f"{group_name} [{group_classes[group_name]}, n={group_sizes[group_name]}]: "
+          f"{len(unique_features)} unique, {len(absent_features)} absent")
 
 # ---------------------------------------------------------------------------
 # Save
@@ -88,8 +133,37 @@ for group_name, strains in STRAIN_GROUPS.items():
 df_unique = pd.DataFrame.from_dict(features_unique_to_group, orient="index")
 df_absent = pd.DataFrame.from_dict(features_absent_in_group, orient="index")
 
+# Per-group summary annotated by size class. Written to a separate file rather
+# than added as a sheet to OUTPUT_FILE: scripts S15B and S15C iterate over every
+# sheet of that workbook and treat each as a KD group, so an extra sheet would
+# be parsed as a phantom group.
+df_summary = pd.DataFrame({
+    "kd_group": list(STRAIN_GROUPS),
+    "n_strains": [group_sizes[g] for g in STRAIN_GROUPS],
+    "size_class": [group_classes[g] for g in STRAIN_GROUPS],
+    "n_unique_features": [len(features_unique_to_group[g]) for g in STRAIN_GROUPS],
+    "n_absent_features": [len(features_absent_in_group[g]) for g in STRAIN_GROUPS],
+}).sort_values(["size_class", "kd_group"]).reset_index(drop=True)
+
 with pd.ExcelWriter(OUTPUT_FILE, engine="xlsxwriter") as writer:
     df_unique.to_excel(writer, sheet_name="Unique_Features")
     df_absent.to_excel(writer, sheet_name="Absent_Features")
 
+with pd.ExcelWriter(SUMMARY_FILE, engine="xlsxwriter") as writer:
+    df_summary.to_excel(writer, sheet_name="Group_Summary", index=False)
+
+# Plain-TSV copies (canonical; xlsx is the human copy)
+df_unique.to_csv(os.path.join(OUTPUT_DIR, "features_unique_to_group.tsv"), sep="\t")
+df_absent.to_csv(os.path.join(OUTPUT_DIR, "features_absent_in_group.tsv"), sep="\t")
+df_summary.to_csv(os.path.join(OUTPUT_DIR, "group_summary.tsv"), sep="\t", index=False)
+
+print("\nFeatures by group size class:")
+for cls in ["MULTI", "PAIR", "SINGLETON"]:
+    sub = df_summary[df_summary["size_class"] == cls]
+    if len(sub):
+        print(f"  {cls}: {len(sub)} group(s), "
+              f"{int(sub['n_unique_features'].sum())} unique, "
+              f"{int(sub['n_absent_features'].sum())} absent")
+
 print(f"\nSaved to: {OUTPUT_FILE}")
+print(f"Group size summary: {SUMMARY_FILE}")

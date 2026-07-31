@@ -1,11 +1,33 @@
 """
-S14_KD_group_validation.py — Kin Discrimination Group Validation and Subgroup Generation
---------------------------------------------------------------------------------------
+S14_KD_group_validation.py - Kin discrimination group validation and subgroup generation
+----------------------------------------------------------------------------------------
 Author: Eva Stare
 
-This script validates kin discrimination (KD) group assignments against
-experimentally determined swarming interaction phenotypes and resolves
-within-group violations through minimum-exclusion and subgroup reassignment.
+Validates kin discrimination (KD) group assignments against experimentally
+determined swarming interaction phenotypes and resolves within-group
+discrimination events by exclusion and subgroup reassignment.
+
+Strains are treated as vertices and within-group discrimination events as
+edges, so identifying the fewest strains whose exclusion removes all
+within-group discrimination is a minimum vertex cover problem. Exact minimum
+covers are obtained by exhaustive enumeration, which is tractable at the group
+sizes encountered here (n <= 27). All equally optimal covers are enumerated and
+exported. A greedy vertex-removal heuristic is run alongside for comparison but
+does not determine the reported assignments.
+
+Where the minimum vertex cover was not unique, one solution was fixed a priori so 
+that group assignments are deterministic and reproducible across runs. The alternatives 
+are equivalent by every criterion applied here — identical cover size, identical 
+retained group size, and no within-group conflicts under either — so the choice among 
+them is arbitrary and the sensitivity of downstream results to this choice is 
+reported in Supporting Information S3.
+
+Excluded strains are partitioned into kin-consistent subgroups by maximal
+clique enumeration under an explicit deterministic objective.
+
+The solver comparison, the full set of equally optimal covers, and any
+alternative subgroup partitions are reported to stdout at run time; the
+written outputs are the group assignments and summary only.
 
 Phenotype coding:
   1.0  = strong kin (merge)
@@ -14,17 +36,20 @@ Phenotype coding:
   0.0  = strong non-kin (discrimination)
 """
 
-import pandas as pd
-import numpy as np
-from collections import defaultdict
-import networkx as nx
 import os
+from collections import defaultdict
+from itertools import combinations
+
+import networkx as nx
+import numpy as np
+import pandas as pd
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-INPUT_FILE = "input/Strain_interactions.xlsx"
-OUTPUT_FILE = "output/KD_Validation_with_Subgroups.xlsx"
+INPUT_FILE = "data/processed/strain_interactions.tsv"
+OUTPUT_DIR = "data/kd/output"
+OUTPUT_FILE = OUTPUT_DIR + "/KD_Validation_with_Subgroups.xlsx"
 
 COL_S1 = "S1"
 COL_S2 = "S2"
@@ -35,12 +60,20 @@ COL_GROUP_S2 = "Group_S2"
 KIN_VALUES = [1.0, 0.5]
 DISC_VALUES = [0.25, 0.0]
 
-os.makedirs("output", exist_ok=True)
+# Published exclusion sets, retained where the minimum vertex cover is not
+# unique. Both alternatives in g25 are provably minimum covers of equal size;
+# this one is fixed by the original analysis and by Supporting Information S3.
+# Keys are group labels, values are strain names as they appear in INPUT_FILE.
+PINNED_EXCLUSIONS = {
+    "g25": ["NRS6107", "NRS6116", "NRS6190", "P8B3", "PS11", "PS51"],
+}
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # 1. Load data
 # ---------------------------------------------------------------------------
-df = pd.read_excel(INPUT_FILE)
+df = pd.read_csv(INPUT_FILE, sep="\t")
 print(f"Loaded {len(df)} interactions")
 
 # ---------------------------------------------------------------------------
@@ -66,92 +99,194 @@ for _, row in within_violations.iterrows():
     strain_violation_counts[row[COL_S2]]["partners"].append(row[COL_S1])
 
 # ---------------------------------------------------------------------------
-# 3. Greedy minimum-exclusion algorithm
+# 3. Exact minimum exclusion (minimum vertex cover)
 # ---------------------------------------------------------------------------
-def find_minimum_exclusion(violations_df, col_s1, col_s2, col_group):
-    """
-    For each group with violations, iteratively remove the strain with the
-    most violations until no violations remain. Returns a dict of
-    {group: [excluded strains]}.
-    """
-    results = {}
-
-    for group in violations_df[col_group].unique():
-        group_viols = violations_df[violations_df[col_group] == group]
-        remaining = set()
-        for _, row in group_viols.iterrows():
-            remaining.add((row[col_s1], row[col_s2]))
-
-        to_remove = []
-
-        while remaining:
-            strain_scores = defaultdict(int)
-            for s1, s2 in remaining:
-                strain_scores[s1] += 1
-                strain_scores[s2] += 1
-
-            worst = max(strain_scores, key=strain_scores.get)
-            to_remove.append(worst)
-            remaining = {(s1, s2) for s1, s2 in remaining
-                         if s1 != worst and s2 != worst}
-
-        results[group] = to_remove
-        if to_remove:
-            print(f"  {group}: exclude {to_remove}")
-
-    return results
-
-
-print("\nMinimum exclusion:")
-excluded_strains = find_minimum_exclusion(within_violations, COL_S1, COL_S2, COL_GROUP_S1)
-
-# ---------------------------------------------------------------------------
-# 4. Reassign excluded strains via maximal clique detection
-# ---------------------------------------------------------------------------
-# Build interaction lookup
+# Interaction lookup, used by the exclusion solver and the subgroup assignment.
 interactions = {}
 for _, row in df.iterrows():
-    key = tuple(sorted([row[COL_S1], row[COL_S2]]))
-    interactions[key] = row[COL_PHENOTYPE]
+    interactions[tuple(sorted([str(row[COL_S1]), str(row[COL_S2])]))] = row[COL_PHENOTYPE]
 
 
 def get_interaction(s1, s2):
-    return interactions.get(tuple(sorted([s1, s2])), None)
+    """Return the phenotype score for a strain pair, or None if untested."""
+    return interactions.get(tuple(sorted([str(s1), str(s2)])), None)
 
 
-def find_subgroups_for_excluded(strains, group_name):
+def edges_for_group(violations_df, group, col_s1, col_s2, col_group):
+    """Return the set of within-group violation edges for one group."""
+    g = violations_df[violations_df[col_group] == group]
+    return {tuple(sorted((str(r[col_s1]), str(r[col_s2])))) for _, r in g.iterrows()}
+
+
+def greedy_exclusion(edges):
+    """Greedy vertex-removal heuristic.
+
+    Iteratively removes the strain involved in the largest number of remaining
+    violations, breaking ties alphabetically. Retained for comparison only:
+    this is a heuristic and is not guaranteed to return a minimum cover.
     """
-    Among excluded strains, build a kin-compatibility graph and find maximal
-    cliques (size >= 2) as new subgroups. Remaining strains are singletons.
+    remaining = set(edges)
+    removed = []
+    while remaining:
+        scores = defaultdict(int)
+        for s1, s2 in remaining:
+            scores[s1] += 1
+            scores[s2] += 1
+        best = min(scores, key=lambda s: (-scores[s], s))
+        removed.append(best)
+        remaining = {(a, b) for a, b in remaining if a != best and b != best}
+    return sorted(removed)
+
+
+def exact_minimum_vertex_covers(edges):
+    """Enumerate all minimum vertex covers by exhaustive search.
+
+    Searches subsets of increasing size and returns the first size at which a
+    valid cover exists, together with every cover of that size.
+    Returns (cover_size, [frozenset, ...]).
     """
+    if not edges:
+        return 0, [frozenset()]
+    vertices = sorted({v for e in edges for v in e})
+    for k in range(1, len(vertices) + 1):
+        covers = [frozenset(sub) for sub in combinations(vertices, k)
+                  if all(a in set(sub) or b in set(sub) for a, b in edges)]
+        if covers:
+            return k, covers
+    return len(vertices), [frozenset(vertices)]
+
+
+def retained_kin_edges(cover, edges):
+    """Number of kin interactions among strains retained under a cover.
+
+    Used as the tie-break criterion when no pinned solution is defined: the
+    cover leaving the most internally connected group is preferred.
+    """
+    members = {v for e in edges for v in e} - set(cover)
+    return sum(1 for a, b in combinations(sorted(members), 2)
+               if get_interaction(a, b) in KIN_VALUES)
+
+
+def solve_exclusions(violations_df, col_s1, col_s2, col_group):
+    """Solve the exact minimum exclusion problem for every group with violations.
+
+    Returns (excluded_strains, alternatives) where excluded_strains maps
+    group -> selected exclusion set and alternatives maps group -> all equally
+    optimal exclusion sets. The greedy heuristic is evaluated for comparison
+    and reported to stdout only.
+    """
+    excluded, alternatives = {}, {}
+    n_optimal = 0
+
+    for group in sorted(violations_df[col_group].unique()):
+        edges = edges_for_group(violations_df, group, col_s1, col_s2, col_group)
+        greedy = greedy_exclusion(edges)
+        k_exact, covers = exact_minimum_vertex_covers(edges)
+
+        if group in PINNED_EXCLUSIONS:
+            chosen = sorted(PINNED_EXCLUSIONS[group])
+            assert frozenset(chosen) in covers, (
+                f"{group}: pinned exclusion set {chosen} is not a minimum "
+                f"vertex cover of size {k_exact}. Input data may have changed."
+            )
+            selection = "pinned (published solution)"
+        else:
+            chosen = sorted(max(
+                covers,
+                key=lambda c: (retained_kin_edges(c, edges), tuple(sorted(c)))
+            ))
+            selection = "tie-break" if len(covers) > 1 else "unique"
+
+        excluded[group] = chosen
+        alternatives[group] = sorted(sorted(c) for c in covers)
+
+        n_optimal += int(len(greedy) == k_exact)
+
+        flag = "optimal" if len(greedy) == k_exact else "SUBOPTIMAL"
+        print(f"  {group}: {len(edges)} violation edges")
+        print(f"    exact minimum    = {k_exact}: {chosen}  [{selection}]")
+        print(f"    greedy heuristic = {len(greedy)}: {greedy}  [{flag}]")
+        if len(covers) > 1:
+            print(f"    {len(covers)} equally optimal solutions:")
+            for c in alternatives[group]:
+                print(f"      - {c}")
+
+    n_groups = len(excluded)
+    n_nonunique = sum(1 for v in alternatives.values() if len(v) > 1)
+    print(f"\n  Greedy matched the exact minimum in {n_optimal}/{n_groups} groups")
+    print(f"  Groups with a non-unique minimum cover: {n_nonunique}")
+    print(f"  Total strains excluded: {sum(len(v) for v in excluded.values())}")
+
+    return excluded, alternatives
+
+
+print("\nExact minimum exclusion (minimum vertex cover):")
+excluded_strains, exclusion_alternatives = solve_exclusions(
+    within_violations, COL_S1, COL_S2, COL_GROUP_S1)
+
+# ---------------------------------------------------------------------------
+# 4. Deterministic clique-based subgroup assignment
+# ---------------------------------------------------------------------------
+def find_subgroups_for_excluded(strains, group_name, max_partitions=200):
+    """Partition excluded strains into non-overlapping kin-consistent subgroups.
+
+    Maximal cliques of the kin graph may overlap, so greedy first-come
+    assignment is order-dependent. Assignment is instead made under an explicit
+    objective: maximise the number of strains placed into subgroups of size
+    >= 2, breaking ties by largest-subgroup-first then alphabetical order.
+    Returns (subgroups, singletons, alternative_partitions).
+    """
+    strains = sorted(set(map(str, strains)))
     if len(strains) < 2:
-        return [], list(strains)
+        return [], strains, []
 
     G = nx.Graph()
     G.add_nodes_from(strains)
+    for s1, s2 in combinations(strains, 2):
+        if get_interaction(s1, s2) in KIN_VALUES:
+            G.add_edge(s1, s2)
 
-    for i, s1 in enumerate(strains):
-        for s2 in strains[i + 1:]:
-            pheno = get_interaction(s1, s2)
-            if pheno is not None and pheno in KIN_VALUES:
-                G.add_edge(s1, s2)
+    cliques = sorted([sorted(c) for c in nx.find_cliques(G) if len(c) >= 2],
+                     key=lambda c: (-len(c), c))
+    if not cliques:
+        return [], strains, []
 
-    # Find all maximal cliques of size >= 2
-    cliques = [c for c in nx.find_cliques(G) if len(c) >= 2]
+    best = {"covered": -1, "partitions": [], "keys": set()}
 
-    # Greedy assignment: largest cliques first, no strain assigned twice
-    cliques.sort(key=len, reverse=True)
-    assigned = set()
-    subgroups = []
+    def _search(idx, chosen, used):
+        if idx == len(cliques):
+            covered = len(used)
+            key = tuple(sorted(tuple(c) for c in chosen))
+            if covered > best["covered"]:
+                best.update(covered=covered, partitions=[chosen[:]], keys={key})
+            elif covered == best["covered"] and key not in best["keys"]:
+                if len(best["partitions"]) < max_partitions:
+                    best["partitions"].append(chosen[:])
+                    best["keys"].add(key)
+            return
+        c = cliques[idx]
+        if not set(c) & used:
+            _search(idx + 1, chosen + [c], used | set(c))
+        _search(idx + 1, chosen, used)
 
-    for clique in cliques:
-        available = [s for s in clique if s not in assigned]
-        if len(available) >= 2:
-            subgroups.append(available)
-            assigned.update(available)
+    _search(0, [], set())
 
+    partitions = sorted(
+        (sorted(p, key=lambda c: (-len(c), c)) for p in best["partitions"]),
+        key=lambda p: [(-len(c), c) for c in p]
+    )
+    subgroups = partitions[0] if partitions else []
+    assigned = {s for c in subgroups for s in c}
     singletons = [s for s in strains if s not in assigned]
-    return subgroups, singletons
+    alternatives = partitions[1:]
+
+    if alternatives:
+        print(f"  {group_name}: {len(partitions)} equally optimal partitions "
+              f"of the excluded strains")
+        for p in partitions:
+            print(f"    - {p}")
+
+    return subgroups, singletons, alternatives
 
 
 # Build strain-to-group mapping
@@ -184,7 +319,8 @@ for group in all_groups:
             })
 
         # Find subgroups among excluded strains
-        subgroups, singletons = find_subgroups_for_excluded(list(excluded), group)
+        subgroups, singletons, subgroup_alternatives = find_subgroups_for_excluded(
+            sorted(excluded), group)
 
         for idx, sg in enumerate(subgroups):
             suffix = chr(ord("B") + idx)
@@ -321,9 +457,9 @@ plt.suptitle("Within-group Phenotype Interactions\n"
              "(Green = Kin [1.0, 0.5], Red/Orange = Nonkin [0.25, 0])",
              fontsize=14, fontweight="bold", y=1.02)
 plt.tight_layout()
-plt.savefig(os.path.join("output", "all_kd_groups_matrices_new.png"),
+plt.savefig(os.path.join(OUTPUT_DIR, "all_kd_groups_matrices_new.png"),
             dpi=150, bbox_inches="tight")
-print("Saved: output/all_kd_groups_matrices_new.png")
+print(f"Saved: {OUTPUT_DIR}/all_kd_groups_matrices_new.png")
 
 # ---------------------------------------------------------------------------
 # 7. Summary and export
@@ -355,5 +491,11 @@ summary_data = pd.DataFrame({
 with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
     assignments_df.to_excel(writer, sheet_name="Group_Assignments", index=False)
     summary_data.to_excel(writer, sheet_name="Summary", index=False)
+
+# Plain-TSV copies of the two output sheets (canonical; xlsx is human copy)
+assignments_df.to_csv(os.path.join(OUTPUT_DIR, "KD_Validation_Group_Assignments.tsv"),
+                      sep="\t", index=False)
+summary_data.to_csv(os.path.join(OUTPUT_DIR, "KD_Validation_Summary.tsv"),
+                    sep="\t", index=False)
 
 print(f"\nSaved to: {OUTPUT_FILE}")

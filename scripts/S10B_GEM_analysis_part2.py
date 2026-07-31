@@ -33,7 +33,7 @@ from cobra.manipulation.modify import rename_genes
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-WORK_DIR = "./GEM"
+WORK_DIR = "data/GEM"
 MODELS_DIR = os.path.join(WORK_DIR, "Models")
 REFERENCE_MODEL = os.path.join(WORK_DIR, "iBB1018.xml")
 ORTHO_MATRIX = os.path.join(WORK_DIR, "ortho_matrix.csv")

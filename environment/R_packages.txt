@@ -20,6 +20,9 @@ ape         # v5.8-1
 vegan       # v2.7-1
 circlize    # v0.4.16
 diptest     # v0.77-2
+readr       # v2.1.5
+yaml        # v2.3.11
+pROC        # v1.19.0.1
 
 # --- Bioconductor ---
 ComplexHeatmap   # v2.24.1

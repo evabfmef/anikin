@@ -5,17 +5,25 @@
 # Pangenome accumulation and BLAST identity plots from Roary output.
 # Adapted from create_pan_genome_plots.R (Page et al., 2015; Roary v3.13.0;
 # https://github.com/sanger-pathogens/Roary).
-
+#
+# USAGE:
+#   Rscript S4_pangenome_plots.R
+#
+#   Set the dataset in section 1 below by uncommenting the matching line:
+#     40 PS:       data/roary/40PS  -> results/pangenome_plots_40PS
+#     313 strains: data/roary/313   -> results/pangenome_plots_313
+#
+# INPUT: input_dir must contain the five Roary .Rtab files.
+#
 # Author: Eva Stare
 # =============================================================================
-
+ 
 suppressPackageStartupMessages(library(ggplot2))
-
-# --- 1. Arguments & directories -----------------------------------------------
-args       <- commandArgs(trailingOnly = TRUE)
-input_dir  <- if (length(args) >= 1) args[1] else "input"
-output_dir <- if (length(args) >= 2) args[2] else "output_plots"
-
+ 
+# --- 1. Dataset paths (uncomment the one you're running) ----------------------
+input_dir  <- "data/roary/40PS"; output_dir <- "results/pangenome_plots_40PS"
+# input_dir  <- "data/roary/313";  output_dir <- "results/pangenome_plots_313"
+ 
 if (!dir.exists(input_dir)) {
   stop("Input directory '", input_dir, "' does not exist.")
 }
@@ -30,11 +38,11 @@ find_one <- function(pattern) {
 }
 
 files <- list(
-  new       = find_one(".*Number of New Genes.*\\.Rtab$"),
-  conserved = find_one(".*Number of Conserved Genes.*\\.Rtab$"),
-  pan       = find_one(".*Number of Genes in Pan Geneome.*\\.Rtab$"),
-  unique    = find_one(".*Number of Unique Genes.*\\.Rtab$"),
-  blast     = find_one(".*Blast Identity Frequencies.*\\.Rtab$")
+  new       = find_one("Roary_Number_of_New_Genes\\.Rtab$"),
+  conserved = find_one("Roary_Number_of_Conserved_Genes\\.Rtab$"),
+  pan       = find_one("Roary_Number_of_Genes_in_Pan_Genome\\.Rtab$"),
+  unique    = find_one("Roary_Number_of_Unique_Genes\\.Rtab$"),
+  blast     = find_one("Roary_Blast_Identity_Frequencies\\.Rtab$")
 )
 
 # --- 3. Boxplots: accumulation curves -----------------------------------------

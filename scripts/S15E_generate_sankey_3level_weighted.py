@@ -12,6 +12,7 @@ contributes a total weight of 1, split equally across its categories.
 Author: Eva Stare
 """
 
+import os
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -19,10 +20,12 @@ import plotly.graph_objects as go
 # 1. Read and validate data
 # =============================================================================
 
-INPUT_FILE = "39_KD_features_summary_9kat_p_PRESENT.csv"
+INPUT_FILE = "data/kd/inputs/39_KD_features_summary_9cat.tsv"
+OUTPUT_DIR = "data/kd/output/39"   # S15E is the 39-strain analysis only
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 REQUIRED_COLS = ["Kin group", "Gene name", "Functional category", "Category"]
 
-df = pd.read_csv(INPUT_FILE, sep=";")
+df = pd.read_csv(INPUT_FILE, sep="\t")
 df = df.dropna(subset=REQUIRED_COLS).copy()
 
 for col in REQUIRED_COLS:
@@ -229,16 +232,14 @@ fig.update_layout(
 # 8. Export
 # =============================================================================
 
-fig.write_html("sankey_3level_weighted39.html")
-print("Saved: sankey_3level_weighted39.html")
+fig.write_html(os.path.join(OUTPUT_DIR, "sankey_3level_weighted39.html"))
+print(f"Saved: {OUTPUT_DIR}/sankey_3level_weighted39.html")
 
-fig.write_image("sankey_3level_weighted39.png", width=1800, height=1100, scale=3)
+fig.write_image(os.path.join(OUTPUT_DIR, "sankey_3level_weighted39.png"), width=1800, height=1100, scale=3)
 print("Saved: sankey_3level_weighted39.png (5400×3300 px)")
 
-fig.write_image("sankey_3level_weighted39.svg")
-print("Saved: sankey_3level_weighted39.svg")
+fig.write_image(os.path.join(OUTPUT_DIR, "sankey_3level_weighted39.svg"))
+print(f"Saved: {OUTPUT_DIR}/sankey_3level_weighted39.svg")
 
-fig.write_image("sankey_3level_weighted39.pdf")
-print("Saved: sankey_3level_weighted39.pdf")
-
-fig.show()
+fig.write_image(os.path.join(OUTPUT_DIR, "sankey_3level_weighted39.pdf"))
+print(f"Saved: {OUTPUT_DIR}/sankey_3level_weighted39.pdf")

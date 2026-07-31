@@ -6,7 +6,8 @@
 # discrimination determinants (Methods 5.11 and 5.12).
 #
 # Analyses performed:
-#   (1) Feature enrichment across 399 high-ANI (fastANI >= 99.5%) pairwise
+#   (1) Feature enrichment across high-ANI pairwise interactions
+#       (threshold set in config_S14_S17.yml; 99.5% in the published run)
 #       interactions using Fisher's exact tests for
 #         (a) shared presence (both strains carry the feature) and
 #         (b) feature mismatch (XOR: exactly one strain carries it),
@@ -41,16 +42,60 @@ suppressPackageStartupMessages({
   library(ggrepel)
 })
 
-# --- Output directory ---------------------------------------------------------
-run_output_dir <- "output"
+# =============================================================================
+# CONFIGURATION LAYER
+# Paths and all inferential thresholds are read from config_S14_S17.yml so
+# that biological and statistical decisions are reviewable without reading
+# the analysis code. No threshold is hard-coded below.
+#
+#   Rscript S17_feature_enrichment_and_strain_centric_analysis.R [--config=FILE]
+# =============================================================================
+suppressPackageStartupMessages(library(yaml))
+
+.args <- commandArgs(trailingOnly = TRUE)
+.cfg_arg <- grep("^--config=", .args, value = TRUE)
+config_file <- if (length(.cfg_arg)) sub("^--config=", "", .cfg_arg[1]) else
+                 "config_S14_S17.yml"
+if (!file.exists(config_file))
+  stop("Configuration file not found: ", config_file,
+       "\n  Expected config_S14_S17.yml in the working directory, or pass",
+       " --config=FILE.", call. = FALSE)
+cfg <- yaml::read_yaml(config_file)
+
+interaction_file <- cfg$s17$interaction_file
+feature_file     <- cfg$s17$feature_file
+run_output_dir   <- cfg$s17$output_dir
+
+# High-ANI subset. Same descriptive boundary as S13A; see S13B for validation.
+HIGH_ANI <- cfg$s17$high_ani_threshold
+
+# Inferential choices for the Fisher's exact enrichment tests.
+FDR_ALPHA    <- cfg$s17$enrichment$fdr_alpha
+OR_UPPER     <- cfg$s17$enrichment$or_upper
+OR_LOWER     <- cfg$s17$enrichment$or_lower
+MIN_COUNT    <- cfg$s17$enrichment$min_count
+LOG2OR_LABEL <- cfg$s17$enrichment$log2or_label
+
+# Strain-centric case-control inclusion criteria (separate from MIN_COUNT).
+SC_MIN_MERGE <- cfg$s17$strain_centric$min_merge
+SC_MIN_DISC  <- cfg$s17$strain_centric$min_discriminate
+
+# Phenotype coding, shared with S14 via the same config.
+KIN_CUTOFF <- cfg$phenotype$kin_cutoff
+
+PLOT_DPI  <- cfg$s17$plots$dpi
+PLOT_BASE <- cfg$s17$plots$base_size
+
 dir.create(run_output_dir,                       recursive = TRUE, showWarnings = FALSE)
 dir.create(file.path(run_output_dir, "figures"), recursive = TRUE, showWarnings = FALSE)
 
-theme_set(theme_minimal(base_size = 12))
+theme_set(theme_minimal(base_size = PLOT_BASE))
 
-# --- Paths (edit as needed) ---------------------------------------------------
-interaction_file <- "data/strain_interactions.xlsx"
-feature_file     <- "data/Filtered_presence_absence_78strains.xlsx"
+cat("Configuration:      ", config_file, "\n", sep = "")
+cat(sprintf("High-ANI threshold:  fastANI >= %.2f%%\n", HIGH_ANI))
+cat(sprintf("Significance:        FDR < %.3g\n", FDR_ALPHA))
+cat(sprintf("Effect-size bounds:  OR > %.3g or OR < %.3g, n >= %d\n",
+            OR_UPPER, OR_LOWER, MIN_COUNT))
 
 # Helper: rename strain identifiers via a lookup vector
 rename_strains <- function(x, key) ifelse(x %in% names(key), key[x], x)
@@ -85,8 +130,8 @@ data_clean <- data |>
     S2                 = as.character(S2),
     phenotype_numeric  = convert_phenotype(Phenotype_interaction),
     same_group         = Group_S1 == Group_S2,
-    fastANI_threshold  = fastANI >= 99.5,
-    observed_kin       = phenotype_numeric >= 0.5,
+    fastANI_threshold  = fastANI >= HIGH_ANI,
+    observed_kin       = phenotype_numeric >= KIN_CUTOFF,
     phenotype_category = case_when(
       phenotype_numeric == 1.0  ~ "Merging",
       phenotype_numeric == 0.5  ~ "Contact",
@@ -151,11 +196,11 @@ cat("Total features:",         sum(sapply(mega_matrix_renamed, nrow)),   "\n")
 
 # --- 2.1 Define target and background set -------------------------------------
 data_annotated <- data_clean |>
-  mutate(HighANI_Discriminating = fastANI >= 99.5 & !observed_kin)
+  mutate(HighANI_Discriminating = fastANI >= HIGH_ANI & !observed_kin)
 
-data_highANI <- data_annotated |> filter(fastANI >= 99.5)
+data_highANI <- data_annotated |> filter(fastANI >= HIGH_ANI)
 
-cat("High-ANI pairs (fastANI >= 99.5%):       ",
+cat(sprintf("High-ANI pairs (fastANI >= %.2f%%):       ", HIGH_ANI),
     nrow(data_highANI),                       "\n")
 cat("High-ANI discriminating (nonconforming): ",
     sum(data_highANI$HighANI_Discriminating), "\n")
@@ -238,12 +283,13 @@ if (features_loaded) {
 
   cat("Shared-presence features tested:",
       nrow(feature_results_all),                  "\n")
-  cat("Significant (FDR < 0.05):       ",
-      sum(feature_results_all$FDR < 0.05),        "\n")
+  cat(sprintf("Significant (FDR < %.3g):       ", FDR_ALPHA),
+      sum(feature_results_all$FDR < FDR_ALPHA),        "\n")
 
-  # Stringent candidates: |log2OR| > 1 AND n >= 5
+  # Stringent candidates: effect-size and count bounds from the config
   stringent_shared <- feature_results_all |>
-    filter(FDR < 0.05, (OR > 2 | OR < 0.5), n_highANI_disc >= 5,
+    filter(FDR < FDR_ALPHA, (OR > OR_UPPER | OR < OR_LOWER),
+           n_highANI_disc >= MIN_COUNT,
            is.finite(OR), OR > 0) |>
     mutate(
       logOR     = log2(OR),
@@ -256,8 +302,8 @@ if (features_loaded) {
       nrow(stringent_shared), "\n")
 
   # ---- Exports ---------------------------------------------------------------
-  # Table S26: all significant shared-presence features (FDR < 0.05)
-  write_csv(feature_results_all |> filter(FDR < 0.05),
+  # Table S26: all significant shared-presence features (FDR < FDR_ALPHA)
+  write_csv(feature_results_all |> filter(FDR < FDR_ALPHA),
             file.path(run_output_dir, "TableS26_shared_significant.csv"))
 
   # Table S27A: top 20 stringent candidates (FDR-first)
@@ -281,9 +327,9 @@ if (features_loaded) {
       log2OR        = log2(OR),
       neg_log10_FDR = -log10(FDR),
       Significance  = case_when(
-        FDR < 0.05 & log2OR >  1 ~ "Enriched in discrimination",
-        FDR < 0.05 & log2OR < -1 ~ "Enriched in kin behaviour",
-        FDR < 0.05                ~ "Significant (small effect)",
+        FDR < FDR_ALPHA & log2OR >  LOG2OR_LABEL ~ "Enriched in discrimination",
+        FDR < FDR_ALPHA & log2OR < -LOG2OR_LABEL ~ "Enriched in kin behaviour",
+        FDR < FDR_ALPHA                          ~ "Significant (small effect)",
         TRUE                      ~ "Not significant"
       ),
       label = ifelse(FDR < 0.01 & abs(log2OR) > 2.5,
@@ -295,7 +341,7 @@ if (features_loaded) {
 
   p_volcano_shared <- ggplot(volcano_shared, aes(log2OR, neg_log10_FDR)) +
     geom_point(aes(color = Significance), alpha = 0.6, size = 2) +
-    geom_hline(yintercept = -log10(0.05),
+    geom_hline(yintercept = -log10(FDR_ALPHA),
                linetype = "dashed", color = "gray40") +
     geom_vline(xintercept = c(-1, 1),
                linetype = "dashed", color = "gray40") +
@@ -347,12 +393,13 @@ if (features_loaded) {
 
   cat("Mismatch features tested:   ",
       nrow(mismatch_results_all),                 "\n")
-  cat("Significant (FDR < 0.05):   ",
-      sum(mismatch_results_all$FDR < 0.05),       "\n")
+  cat(sprintf("Significant (FDR < %.3g):   ", FDR_ALPHA),
+      sum(mismatch_results_all$FDR < FDR_ALPHA),       "\n")
 
   # Stringent mismatch candidates
   stringent_mismatch <- mismatch_results_all |>
-    filter(FDR < 0.05, (OR > 2 | OR < 0.5), n_mismatch_disc >= 5,
+    filter(FDR < FDR_ALPHA, (OR > OR_UPPER | OR < OR_LOWER),
+           n_mismatch_disc >= MIN_COUNT,
            is.finite(OR), OR > 0) |>
     mutate(
       logOR     = log2(OR),
@@ -365,8 +412,8 @@ if (features_loaded) {
       nrow(stringent_mismatch), "\n")
 
   # ---- Exports ---------------------------------------------------------------
-  # Table S28: all significant mismatch features (FDR < 0.05)
-  write_csv(mismatch_results_all |> filter(FDR < 0.05),
+  # Table S28: all significant mismatch features (FDR < FDR_ALPHA)
+  write_csv(mismatch_results_all |> filter(FDR < FDR_ALPHA),
             file.path(run_output_dir, "TableS28_mismatch_significant.csv"))
 
   # Table S29A: top 20 stringent mismatch candidates (FDR-first)
@@ -397,9 +444,9 @@ if (features_loaded) {
       clipped            = log2OR >  x_limit | log2OR < -x_limit |
                            neg_log10_FDR > y_limit,
       Significance       = case_when(
-        FDR < 0.05 & log2OR >  1 ~ "Mismatch promotes discrimination",
-        FDR < 0.05 & log2OR < -1 ~ "Mismatch promotes kin behaviour",
-        FDR < 0.05                ~ "Significant (small effect)",
+        FDR < FDR_ALPHA & log2OR >  LOG2OR_LABEL ~ "Mismatch promotes discrimination",
+        FDR < FDR_ALPHA & log2OR < -LOG2OR_LABEL ~ "Mismatch promotes kin behaviour",
+        FDR < FDR_ALPHA                          ~ "Significant (small effect)",
         TRUE                      ~ "Not significant"
       ),
       label = ifelse(FDR < 0.01 & abs(log2OR) > 3,
@@ -415,7 +462,7 @@ if (features_loaded) {
                alpha = 0.6, size = 2) +
     scale_shape_manual(values = c(`FALSE` = 16, `TRUE` = 17),
                        guide = "none") +
-    geom_hline(yintercept = -log10(0.05),
+    geom_hline(yintercept = -log10(FDR_ALPHA),
                linetype = "dashed", color = "gray40") +
     geom_vline(xintercept = c(-1, 1),
                linetype = "dashed", color = "gray40") +
@@ -451,7 +498,7 @@ if (features_loaded) {
 
 # --- 3.1 Identify focal strains -----------------------------------------------
 # Focal strains: >=3 merging AND >=5 discriminating high-ANI partners.
-high_ANI_all <- data_clean |> filter(fastANI >= 99.5)
+high_ANI_all <- data_clean |> filter(fastANI >= HIGH_ANI)
 
 strain_partners <- bind_rows(
   high_ANI_all |> select(Strain = S1, Partner = S2,
@@ -470,7 +517,7 @@ strain_partners <- bind_rows(
   )
 
 focal_strains_df <- strain_partners |>
-  filter(n_merge >= 3, n_discriminate >= 5) |>
+  filter(n_merge >= SC_MIN_MERGE, n_discriminate >= SC_MIN_DISC) |>
   arrange(desc(n_discriminate))
 
 cat("Focal strains selected:", nrow(focal_strains_df), "\n")

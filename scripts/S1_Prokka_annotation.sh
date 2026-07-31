@@ -5,29 +5,28 @@
 # Author: Eva Stare
 # =============================================================================
 
-# Output directory
-mkdir -p annot_output_e06
+set -euo pipefail
+shopt -s nullglob
 
-# Loop through all .fasta files in input
-for file in input_directory/*.fasta; do
-  # Extract base filename without path or extension
+files=(data/raw/fasta_genomes/*.fasta)
+(( ${#files[@]} )) || { echo "no FASTA files found"; exit 1; }
+
+mkdir -p annot_output
+
+for file in "${files[@]}"; do
   base=$(basename "$file" .fasta)
-
-  # Output directory and prefix
-  outdir="annot_output_e06/$base"
-  prefix="$base"
-
-  # Run Prokka with manual database and evalue 1e-06 (default setting with manual database)
+  outdir="annot_output/$base"
   prokka "$file" \
     --cpus 16 \
     --outdir "$outdir" \
-    --prefix "$prefix" \
+    --prefix "$base" \
     --increment 1 \
     --gffver 3 \
     --kingdom Bacteria \
     --gcode 11 \
-    --proteins input_manual_db/manual_database.fasta \
+    --proteins data/misc/manual_database.fasta \
     --evalue 1e-06 \
     --addgenes \
-    --locustag CUSTOM
+    --locustag "$base" \
+    --force
 done

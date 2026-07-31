@@ -18,8 +18,8 @@ library(svglite)
 # Paths to FastANI classical-format output files.
 # Each file should contain reciprocal pairs (both A-->B and B-->A), which are
 # averaged below to produce symmetric per-pair ANI values.
-classical_file_40  <- "input/fastani_40_strain_output.txt"
-classical_file_313 <- "input/fastani_313_strain_output.txt"
+classical_file_40  <- "data/fastani/fastani_40PS.tsv"
+classical_file_313 <- "data/fastani/fastani_313.tsv"
 
 # Directory for figure output (created if missing)
 output_dir <- "figures"

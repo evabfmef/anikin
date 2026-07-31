@@ -9,18 +9,17 @@
 
 suppressPackageStartupMessages({
   library(tidyverse)
-  library(readxl)
-  library(writexl)
+  library(readr)     # write_tsv / read_tsv
+  library(writexl)   # xlsx copy for human inspection
 })
 
 # --- 1. Paths -----------------------------------------------------------------
-input_file <- "input/phaster_results.xlsx"
-output_dir <- "output"
-
+input_file <- "data/phaster/input/phaster_prophage_regions.tsv"   # canonical TSV input
+output_dir <- "data/phaster/output"                          # a DIRECTORY, not a file
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # --- 2. Load PHASTER data -----------------------------------------------------
-phaster_data <- read_excel(input_file, sheet = "All Phaster Results")
+phaster_data <- read_tsv(input_file, show_col_types = FALSE)
 
 cat("Strains:",               length(unique(phaster_data$StrainName)), "\n")
 cat("Total prophage regions:", nrow(phaster_data),                     "\n")
@@ -73,10 +72,7 @@ cat("Total intact prophage occurrences:", sum(matrix_intact),                   
 cat("Mean intact prophages per strain:",  round(mean(rowSums(matrix_intact)), 2), "\n")
 
 # --- 6. Save ------------------------------------------------------------------
-output_file <- file.path(output_dir, "prophage_matrix_intact_only.xlsx")
-
-matrix_intact %>%
-  rownames_to_column("StrainName") %>%
-  write_xlsx(output_file)
-
-cat("Saved to:", output_file, "\n")
+result <- matrix_intact %>% rownames_to_column("StrainName")
+write_tsv(result, file.path(output_dir, "prophage_matrix_intact_only.tsv"))   # canonical
+write_xlsx(result, file.path(output_dir, "prophage_matrix_intact_only.xlsx")) # human copy
+cat("Saved to:", output_dir, "\n")

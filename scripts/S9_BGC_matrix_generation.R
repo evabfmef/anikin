@@ -9,21 +9,21 @@
 # =============================================================================
 
 suppressPackageStartupMessages({
-  library(tidyverse)
-  library(readxl)
-  library(writexl)
-  library(openxlsx)
+  library(tidyverse)   # includes readr (read_tsv / write_tsv)
+  library(writexl)     # xlsx copies for human inspection
+  library(openxlsx)    # colour-coded matrix (human copy)
 })
 
 # --- 1. Paths -----------------------------------------------------------------
-antismash_file <- "input/antismash_results.xlsx"
-output_dir     <- "output"
+antismash_file    <- "data/bgc/input/antismash_results.tsv"
+chrom_length_file <- "data/bgc/input/chromosome_lengths.tsv"
+output_dir        <- "data/bgc/output"
 
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # --- 2. Load input data -------------------------------------------------------
-antismash_data <- read_excel(antismash_file, sheet = "Sheet 1")
-chrom_lengths  <- read_excel(antismash_file, sheet = "chromosome_length")
+antismash_data <- read_tsv(antismash_file,    show_col_types = FALSE)
+chrom_lengths  <- read_tsv(chrom_length_file, show_col_types = FALSE)
 
 cat("Strains:",           n_distinct(antismash_data$StrainName), "\n")
 cat("Total BGC regions:", nrow(antismash_data),                  "\n")
@@ -177,6 +177,7 @@ cat("Total unique BGCs:",       nrow(cluster_validation),              "\n")
 cat("BGCs in multiple strains:", sum(cluster_validation$N_strains > 1), "\n")
 cat("Flagged (CV > 30%):",       nrow(flagged),                         "\n")
 
+write_tsv(cluster_validation,  file.path(output_dir, "BGC_cluster_validation.tsv"))
 write_xlsx(cluster_validation, file.path(output_dir, "BGC_cluster_validation.xlsx"))
 
 # --- 9. Generate presence-absence matrix --------------------------------------
@@ -229,6 +230,10 @@ addStyle(wb, "BGC_Matrix", createStyle(textDecoration = "bold"),
 
 saveWorkbook(wb, file.path(output_dir, "BGC_matrix.xlsx"), overwrite = TRUE)
 
+# Canonical plain-TSV matrix (colour coding above is for human inspection only)
+bgc_matrix %>%
+  write_tsv(file.path(output_dir, "BGC_matrix.tsv"))
+
 # Detailed annotations table
 bgc_details <- antismash_named %>%
   select(StrainName, Strain, Region, BGC_Name, BGC_Classification, Type,
@@ -236,6 +241,7 @@ bgc_details <- antismash_named %>%
          Region_length, From, To) %>%
   arrange(StrainName, Region)
 
+write_tsv(bgc_details,  file.path(output_dir, "BGC_detailed_annotations.tsv"))
 write_xlsx(bgc_details, file.path(output_dir, "BGC_detailed_annotations.xlsx"))
 
 cat("Saved: BGC_matrix.xlsx, BGC_cluster_validation.xlsx, BGC_detailed_annotations.xlsx\n")

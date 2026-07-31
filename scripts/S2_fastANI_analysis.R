@@ -5,6 +5,18 @@
 # fastANI analysis: reciprocal ANI averaging, heatmaps, distribution overlay,
 # descriptive statistics, ANI gap testing, clustered matrix export.
 #
+# USAGE:
+#   Rscript S2_fastANI_analysis.R <classical_file.tsv> <output_dir>
+#
+#   40 PS:       Rscript S2_fastANI_analysis.R data/fastani/fastani_40PS.tsv results/fastani_analysis_40PS
+#   313 strains: Rscript S2_fastANI_analysis.R data/fastani/fastani_313.tsv  results/fastani_analysis_313
+#
+# NOTE: For the 313-strain set, set highres = TRUE in the wrapper call near the
+#       bottom of the script. Not needed for 40 PS.
+#
+# INPUT:  tab-separated fastANI classical output, 5 columns, no header:
+#         query  reference  ani  coverage  fragments
+#
 # Author: Eva Stare
 # =============================================================================
 

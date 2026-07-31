@@ -16,7 +16,7 @@ suppressPackageStartupMessages({
 })
 
 # --- 1. Paths -----------------------------------------------------------------
-files_directory <- "input/collected_mapping.potential.TF"
+files_directory <- "data/GEM/input/TF_mapping"
 output_dir      <- "output"
 
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)

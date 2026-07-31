@@ -12,20 +12,19 @@
 # =============================================================================
 
 suppressPackageStartupMessages({
-  library(readxl)
+  library(readr)
   library(vegan)
   library(ape)
 })
 
 # --- 1. Configuration ---------------------------------------------------------
-feature_file <- "input/Mega_matrix.xlsx"
-sheet_name   <- "Filtered_Genes"           # adjust to your sheet name
-output_dir   <- "output"
+feature_file <- "data/matrices/40PS/40PS_matrix_genes.tsv"
+output_dir   <- "data/gene_content/output"
 
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 
 # --- 2. Load and prepare data -------------------------------------------------
-df <- as.data.frame(read_excel(feature_file, sheet = sheet_name),
+df <- as.data.frame(read_tsv(feature_file, show_col_types = FALSE),
                     check.names = FALSE)
 strain_names     <- as.character(df[[1]])
 mat              <- df[, -1, drop = FALSE]

@@ -65,6 +65,8 @@ reported in the manuscript, install Biopython <= 1.83.
 ## 1. Setup and Installation
 
 import pandas as pd
+
+from kd_config import load_config, load_strain_aliases, describe
 import re
 import os
 import glob
@@ -90,17 +92,44 @@ print("Setup complete!")
 """
 
 # ============================================================
-# SET YOUR PATHS HERE
+# CONFIGURATION
 # ============================================================
-BASE_DIR = 'input/'
+# Paths, the reference strain and the variant-classification thresholds are
+# read from config_S14_S17.yml. No biological decision is hard-coded below.
+#
+#   python S15B_KD_variant_validation.py [--config=FILE] [--analysis=39|67]
+cfg = load_config()
+ANALYSIS = cfg["analysis"]
 
-MEGAMATRIX_PATH = os.path.join(BASE_DIR, '67_only_megamatrix_filtered_strains.xlsx')
-FEATURES_PATH = os.path.join(BASE_DIR, 'Features_analysis_67_output.xlsx')
-GBK_DIR = os.path.join(BASE_DIR, '67_strains_gbks')
+BASE_DIR            = cfg["s15b"]["base_dir"]
+GBK_DIR             = cfg["s15b"]["gbk_dir"]
+KD_GROUPS_REPS_FILE = cfg["metadata"]["kd_groups_representatives"]
+MEGAMATRIX_PATH     = (cfg["s15b"]["megamatrix_67"] if ANALYSIS == "67"
+                       else cfg["s15b"]["megamatrix_39"])
+OUTPUT_DIR          = cfg["s15b"]["output_dir"]
 
-# Output
-OUTPUT_DIR = os.path.join(BASE_DIR, 'validation_results')
+# FEATURES_PATH is S15A's DIRECT output, so the pipeline runs end-to-end.
+# NOTE: in the published analysis this file was MANUALLY EDITED between S15A and
+# S15B (hypothetical + essential genes removed, manual gene categorization) —
+# see metadata/manual_curation.tsv. An automated re-run reproduces the pipeline
+# but not that manual edit.
+FEATURES_PATH = os.path.join(OUTPUT_DIR, cfg["s15b"]["features_file"])
+
+# Reference strain against which group-specific variants are compared. This is
+# a biological choice: the reference defines what counts as the ".0" /
+# unsuffixed base variant.
+REFERENCE_STRAIN = cfg["s15b"]["reference_strain"]
+
+# Variant classification thresholds (percentages); see config for rationale.
+ARTEFACT_IDENTITY = cfg["s15b"]["classification"]["artefact_identity"]
+MIN_LENGTH_RATIO  = cfg["s15b"]["classification"]["min_length_ratio"]
+
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+print(describe(cfg))
+print(f"Reference strain:   {REFERENCE_STRAIN}")
+print(f"Classification:     artefact >={ARTEFACT_IDENTITY}% AA identity, "
+      f"truncated <{MIN_LENGTH_RATIO}% length ratio")
 
 print(f"Base dir: {BASE_DIR}")
 print(f"GBK dir exists: {os.path.isdir(GBK_DIR)}")
@@ -112,66 +141,41 @@ print(f"Features exists: {os.path.isfile(FEATURES_PATH)}")
 """
 
 # Load strain names from megamatrix
-df_mega = pd.read_excel(MEGAMATRIX_PATH, sheet_name='Megamatrix', header=None)
+df_mega = pd.read_csv(MEGAMATRIX_PATH, sep='\t', header=None)
 strain_names = [str(df_mega.iloc[i, 0]) for i in range(1, len(df_mega))]
 print(f"Total strains in megamatrix: {len(strain_names)}")
 
 # ============================================================
-# STRAIN NAME -> FILE BASE NAME (without _edit2.gbk)
+# STRAIN NAME -> ASSEMBLY FILE BASE NAME (without .gbk extension)
 # ============================================================
-STRAIN_TO_FILENAME = {
-    '73': 'GCF-009662275.1',
-    'BS16045': 'GCF-001720505.1',
-    'KF24': 'GCF-030123145.1',
-    'MB8_B1': 'GCF-009662255.1',
-    'MB8_B7': 'GCF-009662215.1',
-    'MB9_B1': 'GCF-009662175.1',
-    'MB9_B6': 'GCF-009662375.1',
-    'NCIB_3610': 'GCF-029027845.1',
-    'NRS6085': 'GCF-905310975.2',
-    'NRS6099': 'GCF-905310985.2',
-    'NRS6103': 'GCF-905310995.2',
-    'NRS6105': 'GCF-905311425.2',
-    'NRS6118': 'GCF-905311435.2',
-    'NRS6121': 'GCF-905315035.2',
-    'NRS6127': 'GCF-905315045.2',
-    'NRS6128': 'GCF-905315055.2',
-    'NRS6132': 'GCF-905315015.2',
-    'NRS6145': 'GCF-905315685.2',
-    'NRS6153': 'GCF-905315705.2',
-    'NRS6160': 'GCF-905315715.2',
-    'NRS6181': 'GCF-905318255.2',
-    'NRS6186': 'GCF-905319135.2',
-    'NRS6187': 'GCF-905319545.2',
-    'NRS6202': 'GCF-905319535.2',
-    'P8_B1': 'GCF-009662435.1',
-    'P9_B1': 'GCF-009662455.1',
-    'RO-A-4': 'RO-A-4',
-    'RO-DD-2': 'RO-DD-2',
-    'RO-F-3': 'RO-F-3',
-    'RO-FF-1': 'RO-FF-1',
-    'RS-D-2': 'RS-D-2',
-}
+# Strain -> assembly-filename map, loaded from metadata
+STRAIN_TO_FILENAME = load_strain_aliases(cfg)
 # All PS-xxx strains: filename = strain name
 for s in strain_names:
     if s not in STRAIN_TO_FILENAME:
         STRAIN_TO_FILENAME[s] = s
 
 # ============================================================
-# All files are named: <base>_edit2.gbk
+# All files are named: <assembly_id>.gbk
 # ============================================================
 gbk_map = {}  # strain_name -> gbk_path
 
 for strain in strain_names:
     fname = STRAIN_TO_FILENAME.get(strain, strain)
-    path = os.path.join(GBK_DIR, f"{fname}_edit2.gbk")
+    # Files are named <assembly_id>.gbk (e.g. GCF-000293765.1.gbk).
+    path = os.path.join(GBK_DIR, f"{fname}.gbk")
     if os.path.isfile(path):
         gbk_map[strain] = path
     else:
-        # Fallback: glob
-        matches = glob.glob(os.path.join(GBK_DIR, f"{fname}*.gbk"))
+        # Fallback: exact-stem match only (avoid *.gbk globbing that could
+        # match a different assembly version, e.g. .1 vs .10).
+        matches = [
+            p for p in glob.glob(os.path.join(GBK_DIR, f"{fname}*.gbk"))
+            if os.path.basename(p) == f"{fname}.gbk"
+            or os.path.basename(p).startswith(f"{fname}_")
+        ]
         if matches:
-            gbk_map[strain] = matches[0]
+            gbk_map[strain] = sorted(matches)[0]
 
 print(f"GBK files found: {len(gbk_map)} / {len(strain_names)}")
 
@@ -180,7 +184,7 @@ if missing:
     print(f"\n  Missing GBK ({len(missing)}):")
     for s in missing:
         expected = STRAIN_TO_FILENAME.get(s, s)
-        print(f"    {s} -> expected: {expected}_edit2.gbk")
+        print(f"    {s} -> expected: {expected}.gbk")
 else:
     print("\n All GBK files found!")
 
@@ -284,11 +288,11 @@ for strain in list(strain_data.keys())[:5]:
     print(f"  {strain}: {n_genes} gene names, {n_prots} CDS entries")
 
 # Verify known genes in NCIB_3610
-if 'NCIB_3610' in strain_data:
-    print(f"\nGene check in NCIB_3610:")
+if REFERENCE_STRAIN in strain_data:
+    print(f"\nGene check in {REFERENCE_STRAIN}:")
     for g in ['tagA', 'tagF', 'dnaA', 'sigV', 'conJ', 'comQ', 'rapI']:
-        if g in strain_data['NCIB_3610']:
-            entries = strain_data['NCIB_3610'][g]
+        if g in strain_data[REFERENCE_STRAIN]:
+            entries = strain_data[REFERENCE_STRAIN][g]
             for e in entries:
                 print(f"   {g}: {e['locus_tag']}, {e['length_aa']} AA, {e['start']}-{e['end']} ({e['strand']})")
         else:
@@ -304,11 +308,18 @@ For each group-specific variant, determine:
 """
 
 # Load megamatrix
-df_mega = pd.read_excel(MEGAMATRIX_PATH, sheet_name='Megamatrix', header=None)
+df_mega = pd.read_csv(MEGAMATRIX_PATH, sep='\t', header=None)
 strain_list = [str(df_mega.iloc[i, 0]) for i in range(1, len(df_mega))]
 gene_list = [str(df_mega.iloc[0, j]) for j in range(1, df_mega.shape[1])]
 
-ncib_row = strain_list.index('NCIB_3610') + 1  # +1 for header row
+if REFERENCE_STRAIN not in strain_list:
+    raise ValueError(
+        f"Reference strain {REFERENCE_STRAIN!r} is not present in the "
+        f"megamatrix ({MEGAMATRIX_PATH}). Set s15b.reference_strain in the "
+        f"configuration file to a strain in this panel. "
+        f"Available (first 10): {strain_list[:10]}"
+    )
+ncib_row = strain_list.index(REFERENCE_STRAIN) + 1  # +1 for header row
 
 # Build gene->column mapping
 gene_to_col = {}
@@ -329,34 +340,11 @@ for j, g in enumerate(gene_list):
 # for validation, whereas paralog/copy-number annotation needs every strain.
 # The two mappings are therefore expected to differ.
 # ============================================================
-GROUP_STRAINS = {
-    'g3': ['RO-F-3'],
-    'g4': ['RS-D-2'],
-    'g5': ['RO-DD-2'],
-    'g7': ['RO-A-4'],
-    'g19': ['NRS6085'],
-    'g25_A': ['PS-216', 'MB8_B7', 'P8_B1'],  # 3 representatives of 21
-    'g29': ['BS16045'],
-    'g30': ['NRS6105', 'NRS6145'],  # both strains
-    'g31': ['PS-52', 'PS-53'],  # both strains
-    'g34': ['NRS6128'],
-    'g39': ['PS-209'],
-    'g44': ['PS-196'],
-    'g50': ['PS-130', 'PS-108', 'PS-119'],  # 3 of 5
-    'g52': ['NRS6160'],
-    'g53': ['PS-24', 'PS-25', 'PS-20'],  # all 3
-    'g54': ['PS-160'],
-    'g55': ['PS-93', 'PS-95'],  # both strains
-    'g56': ['PS-217', 'PS-218'],  # both strains
-    'g57': ['PS-15'],
-    'g60_A': ['PS-194', 'PS-64', 'NRS6186'],  # 3 of 4
-    'g60_B': ['NRS6132', 'NRS6099', 'NRS6187'],  # all 3
-    'g63_A': ['PS-149', 'NRS6127', 'PS-55'],  # 3 of 7
-    'g82': ['RO-FF-1'],
-    'g92': ['KF24'],
-    'g95': ['PS-263'],
-    'g96': ['73'],
-}
+# Representative subset per KD group, loaded from metadata.
+# This is a DELIBERATE subset (e.g. 3 representatives of 21) for the sequence
+# validation
+_reps = pd.read_csv(KD_GROUPS_REPS_FILE, sep="\t")
+GROUP_STRAINS = _reps.groupby("kd_group")["strain"].apply(list).to_dict()
 
 # Load features
 xls_feat = pd.ExcelFile(FEATURES_PATH)
@@ -398,7 +386,7 @@ for sheet in xls_feat.sheet_names:
         v0 = base + '.0'
         if v0 in all_vars and all_vars[v0]['ncib']:
             ref_var = v0
-            ref_strain = 'NCIB_3610'
+            ref_strain = REFERENCE_STRAIN
         elif v0 in all_vars:
             ref_var = v0
             col = gene_to_col[v0]
@@ -419,12 +407,12 @@ for sheet in xls_feat.sheet_names:
             ncib_vars = {k: v for k, v in all_vars.items() if v['ncib']}
             if ncib_vars:
                 ref_var = min(ncib_vars.keys(), key=lambda x: all_vars[x]['var_num'])
-                ref_strain = 'NCIB_3610'
+                ref_strain = REFERENCE_STRAIN
             else:
                 # NCIB doesn't carry any numbered variant -> use base
                 # gene name from NCIB_3610 as reference
                 ref_var = base + ' (base gene, no .0 in matrix)'
-                ref_strain = 'NCIB_3610'
+                ref_strain = REFERENCE_STRAIN
                 no_dot_zero = True
 
             # If ref_var is the current variant itself, fall back
@@ -439,7 +427,7 @@ for sheet in xls_feat.sheet_names:
                             break
                 else:
                     ref_var = base + ' (base gene, no .0 in matrix)'
-                    ref_strain = 'NCIB_3610'
+                    ref_strain = REFERENCE_STRAIN
                     no_dot_zero = True
 
         if not no_dot_zero and (ref_var is None or ref_var == gene_str):
@@ -472,7 +460,7 @@ for sheet in xls_feat.sheet_names:
 print(f"Total validation tasks: {len(validation_tasks)}")
 n_no0 = sum(1 for t in validation_tasks if t.get('no_dot_zero', False))
 print(f"  Standard (.0 reference): {len(validation_tasks) - n_no0}")
-print(f"  No .0 in matrix (base gene from NCIB_3610): {n_no0}")
+print(f"  No .0 in matrix (base gene from {REFERENCE_STRAIN}): {n_no0}")
 print(f"\nTasks per group:")
 for g, c in sorted(Counter(v['group'] for v in validation_tasks).items()):
     n0 = sum(1 for t in validation_tasks if t['group'] == g and t.get('no_dot_zero', False))
@@ -522,17 +510,17 @@ def get_protein_for_gene(strain, gene_names, strain_data):
 
 
 # Test with a known example
-if 'NCIB_3610' in strain_data:
-    test = get_protein_for_gene('NCIB_3610', ['tagA'], strain_data)
+if REFERENCE_STRAIN in strain_data:
+    test = get_protein_for_gene(REFERENCE_STRAIN, ['tagA'], strain_data)
     if test:
-        print(f"Test: tagA in NCIB_3610")
+        print(f"Test: tagA in {REFERENCE_STRAIN}")
         for t in test:
             print(f"  {t['locus_tag']}: {t['length_aa']} AA, {t['length_bp']} bp")
             print(f"  Sequence: {t['sequence'][:50]}...")
     else:
-        print("WARNING: Could not find tagA in NCIB_3610!")
+        print(f"WARNING: Could not find tagA in {REFERENCE_STRAIN}!")
         print("Available gene names (first 20):")
-        print(list(strain_data['NCIB_3610'].keys())[:20])
+        print(list(strain_data[REFERENCE_STRAIN].keys())[:20])
 
 """
 ## 7. Run Pairwise Local Alignments
@@ -787,8 +775,9 @@ if len(df_results) > 0:
     #      → assembly fragment, not a real full-length variant
     #   3. True variant:     ≥80% length ratio AND <95% AA identity
     #      → genuinely divergent protein, Roary correctly split it
-    ARTEFACT_THRESHOLD = 95    # ≥95% AA identity → likely clustering artefact
-    LENGTH_RATIO_THRESHOLD = 80  # <80% length ratio → likely truncated
+    # Thresholds come from the configuration file (s15b.classification).
+    ARTEFACT_THRESHOLD = ARTEFACT_IDENTITY
+    LENGTH_RATIO_THRESHOLD = MIN_LENGTH_RATIO
 
     # ============================================================
     # CLASSIFY EACH VARIANT
@@ -803,9 +792,9 @@ if len(df_results) > 0:
 
         # Full-length comparisons
         if pct_id >= ARTEFACT_THRESHOLD:
-            return 'LIKELY ARTEFACT (≥95% AA identity)'
+            return f'LIKELY ARTEFACT (>={ARTEFACT_THRESHOLD}% AA identity)'
         else:
-            return f'VARIANT (<95% AA identity)'
+            return f'VARIANT (<{ARTEFACT_THRESHOLD}% AA identity)'
 
     df_results['classification'] = df_results.apply(classify_variant, axis=1)
 
@@ -850,7 +839,8 @@ if len(df_results) > 0:
 
     if len(artefacts) > 0:
         print(f"\n{'='*80}")
-        print(f"LIKELY ARTEFACTS — ≥95% AA identity, ≥80% length ({len(artefacts)} variants):")
+        print(f"LIKELY ARTEFACTS — >={ARTEFACT_IDENTITY}% AA identity, "
+              f">={MIN_LENGTH_RATIO}% length ({len(artefacts)} variants):")
         print(f"{'='*80}")
         for _, row in artefacts.iterrows():
             print(f"  {row['group']:8s} {row['variant']:35s} {row['pct_identity']:6.1f}% AA, "
@@ -859,7 +849,8 @@ if len(df_results) > 0:
 
     if len(truncated) > 0:
         print(f"\n{'='*80}")
-        print(f"LIKELY TRUNCATED — <80% length ratio ({len(truncated)} variants):")
+        print(f"LIKELY TRUNCATED — <{MIN_LENGTH_RATIO}% length ratio "
+              f"({len(truncated)} variants):")
         print(f"{'='*80}")
         for _, row in truncated.iterrows():
             print(f"  {row['group']:8s} {row['variant']:35s} {row['pct_identity']:6.1f}% AA, "
@@ -868,7 +859,8 @@ if len(df_results) > 0:
 
     if len(variants) > 0:
         print(f"\n{'='*80}")
-        print(f"VARIANTS — <95% AA identity, ≥80% length ({len(variants)} variants):")
+        print(f"VARIANTS — <{ARTEFACT_IDENTITY}% AA identity, "
+              f">={MIN_LENGTH_RATIO}% length ({len(variants)} variants):")
         print(f"{'='*80}")
         for _, row in variants.iterrows():
             print(f"  {row['group']:8s} {row['variant']:35s} {row['pct_identity']:6.1f}% AA, "

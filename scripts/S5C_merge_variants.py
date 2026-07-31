@@ -18,14 +18,20 @@ from pathlib import Path
 import pandas as pd
 
 # ---------------------------------------------------------------------------
+# Paths — change BASE_DIR to relocate the whole gene-clustering tree
+# ---------------------------------------------------------------------------
+BASE_DIR = Path("data/gene_clustering")
+REPORTS_DIR = BASE_DIR / "reports"
+
+# ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
-os.makedirs("results", exist_ok=True)
+os.makedirs(REPORTS_DIR, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler("results/variant_merging.log"),
+        logging.FileHandler(REPORTS_DIR / "variant_merging.log"),
         logging.StreamHandler(),
     ],
 )
@@ -38,21 +44,27 @@ class VariantMerger:
 
     def __init__(self):
         self.config = {
-            # Input
-            "mega_matrix_file": "data/mega_matrix.xlsx",
-            "clustering_summary_file": (
-                "results/conservative_clustering_output/"
-                "01_conservative_clustering_summary.xlsx"
+            # Input — canonical TSVs. The two clustering sheets are read from
+            # the separate per-sheet TSVs that S5A writes; the artifact
+            # candidates from the TSV that S5B writes.
+            "mega_matrix_file": str(BASE_DIR / "inputs" / "mega_matrix.tsv"),
+            "gene_summary_file": str(
+                BASE_DIR / "conservative_clustering_output"
+                / "01_conservative_clustering_Gene_Summary.tsv"
             ),
-            "artifact_summary_file": (
-                "results/artifact_detection_output/"
-                "02_assembly_artifact_detection_summary.xlsx"
+            "clusters_file": str(
+                BASE_DIR / "conservative_clustering_output"
+                / "01_conservative_clustering_Conservative_Clusters.tsv"
+            ),
+            "artifact_candidates_file": str(
+                BASE_DIR / "artifact_detection_output"
+                / "02_assembly_artifact_Artifact_Candidates.tsv"
             ),
             # Output
-            "output_dir": "results/merged_matrix_output",
-            "merged_matrix_file": "results/merged_matrix_output/mega_matrix_merged.xlsx",
-            "merge_mapping_file": "results/merged_matrix_output/merge_mapping.xlsx",
-            "merge_report_file": "results/merged_matrix_output/merge_report.xlsx",
+            "output_dir": str(BASE_DIR / "merged_matrix_output"),
+            "merged_matrix_file": str(BASE_DIR / "merged_matrix_output" / "mega_matrix_merged.xlsx"),
+            "merge_mapping_file": str(BASE_DIR / "merged_matrix_output" / "merge_mapping.xlsx"),
+            "merge_report_file": str(BASE_DIR / "merged_matrix_output" / "merge_report.xlsx"),
             # Merge options
             "rejection_rate_threshold": 0.0,
             "merge_artifacts": True,
@@ -68,21 +80,27 @@ class VariantMerger:
 
     # ---- data loading -----------------------------------------------------
     def load_data(self) -> None:
-        self.mega_matrix = pd.read_excel(self.config["mega_matrix_file"], sheet_name=0)
+        # mega-matrix: default dtype inference keeps 0/1 presence columns int.
+        self.mega_matrix = pd.read_csv(self.config["mega_matrix_file"], sep="\t")
         logger.info("Matrix: %d features × %d columns", *self.mega_matrix.shape)
 
-        self.gene_summary = pd.read_excel(
-            self.config["clustering_summary_file"], sheet_name="Gene_Summary"
+        # Gene_Summary: read as strings but force Rejection_Rate numeric, since
+        # the eligibility filter compares it with <=. Other columns are labels.
+        self.gene_summary = pd.read_csv(
+            self.config["gene_summary_file"], sep="\t", dtype=str
         )
-        self.clusters_df = pd.read_excel(
-            self.config["clustering_summary_file"], sheet_name="Conservative_Clusters"
+        self.gene_summary["Rejection_Rate"] = pd.to_numeric(
+            self.gene_summary["Rejection_Rate"], errors="coerce"
+        )
+        self.clusters_df = pd.read_csv(
+            self.config["clusters_file"], sep="\t", dtype=str
         )
         logger.info("Conservative clusters: %d", len(self.clusters_df))
 
         if self.config["merge_artifacts"]:
-            path = self.config["artifact_summary_file"]
+            path = self.config["artifact_candidates_file"]
             if os.path.isfile(path):
-                df = pd.read_excel(path, sheet_name="Artifact_Candidates")
+                df = pd.read_csv(path, sep="\t", dtype=str)
                 levels = self.config["artifact_confidence_levels"]
                 self.artifacts_df = df[df["Confidence_Level"].isin(levels)]
                 logger.info("Artifact candidates: %d", len(self.artifacts_df))
@@ -216,27 +234,43 @@ class VariantMerger:
     # ---- output -----------------------------------------------------------
     def save(self, merged: pd.DataFrame, dropped: list, details: list) -> None:
         os.makedirs(self.config["output_dir"], exist_ok=True)
+        out_dir = Path(self.config["output_dir"])
+
         merged.to_excel(self.config["merged_matrix_file"], index=False)
-        pd.DataFrame([
+        mapping_df = pd.DataFrame([
             {"Variant": v, "Representative": r,
              "Merge_Source": "+".join(sorted(self.merge_sources.get(r, set())))}
             for v, r in self.merge_mapping.items()
-        ]).to_excel(self.config["merge_mapping_file"], index=False)
+        ])
+        mapping_df.to_excel(self.config["merge_mapping_file"], index=False)
+
+        summary_df = pd.DataFrame({
+            "Metric": ["Original_Features", "Merged_Features",
+                       "Features_Removed", "Reduction_Pct",
+                       "Total_Merge_Groups"],
+            "Value": [len(self.mega_matrix), len(merged), len(dropped),
+                      f"{len(dropped)/len(self.mega_matrix)*100:.2f}%",
+                      len(self.merge_groups)],
+        })
+        details_df = pd.DataFrame(details) if details else None
+        dropped_df = pd.DataFrame(dropped) if dropped else None
 
         with pd.ExcelWriter(self.config["merge_report_file"], engine="openpyxl") as w:
-            summary = {
-                "Metric": ["Original_Features", "Merged_Features",
-                           "Features_Removed", "Reduction_Pct",
-                           "Total_Merge_Groups"],
-                "Value": [len(self.mega_matrix), len(merged), len(dropped),
-                          f"{len(dropped)/len(self.mega_matrix)*100:.2f}%",
-                          len(self.merge_groups)],
-            }
-            pd.DataFrame(summary).to_excel(w, sheet_name="Summary", index=False)
-            if details:
-                pd.DataFrame(details).to_excel(w, sheet_name="Merge_Details", index=False)
-            if dropped:
-                pd.DataFrame(dropped).to_excel(w, sheet_name="Dropped_Variants", index=False)
+            summary_df.to_excel(w, sheet_name="Summary", index=False)
+            if details_df is not None:
+                details_df.to_excel(w, sheet_name="Merge_Details", index=False)
+            if dropped_df is not None:
+                dropped_df.to_excel(w, sheet_name="Dropped_Variants", index=False)
+
+        # Plain-TSV copies (the .xlsx files remain the canonical outputs;
+        # tab-separated so comma-containing gene names stay intact).
+        merged.to_csv(out_dir / "mega_matrix_merged.tsv", sep="\t", index=False)
+        mapping_df.to_csv(out_dir / "merge_mapping.tsv", sep="\t", index=False)
+        summary_df.to_csv(out_dir / "merge_report_Summary.tsv", sep="\t", index=False)
+        if details_df is not None:
+            details_df.to_csv(out_dir / "merge_report_Merge_Details.tsv", sep="\t", index=False)
+        if dropped_df is not None:
+            dropped_df.to_csv(out_dir / "merge_report_Dropped_Variants.tsv", sep="\t", index=False)
         logger.info("Results saved to %s", self.config["output_dir"])
 
     # ---- main pipeline ----------------------------------------------------
