@@ -1,13 +1,38 @@
 # Python packages required by the Python scripts in this repository.
-# Standard-library modules that ship with Python are not listed (os, sys, re, json, glob, csv, logging,...)
+# Standard-library modules that ship with Python are not listed (os, sys, re, json, glob, csv, logging, itertools, collections, ...).
 # Versions below are those used in this study.
+#
 # Python version used: 3.12
 # Install: pip install -r environment/requirements.txt
+#
+# -----------------------------------------------------------------------------
+# S10B AND S10C REQUIRE A SEPARATE ENVIRONMENT
+# -----------------------------------------------------------------------------
+# The draft model generation and reaction matrix scripts (S10B, S10C) run under
+# cobra 0.26.0, which pins pandas~=1.0 and numpy~=1.13. Those constraints cannot
+# be satisfied alongside the pandas 2.x used by the rest of the pipeline, and
+# installing both together fails: pip attempts to build pandas 1.5.3 from source
+# under Python 3.12 and the build errors out.
+#
+# Newer cobra releases are not a substitute. S10B was tested under cobra 0.29
+# and did not run correctly, so the 0.26.0 pin is required rather than
+# conservative.
+#
+#   this file (or environment/S16_environment.yml)  -> S1-S9, S10A, S11-S18
+#   environment/requirements_GEM.txt                -> S10B, S10C
+#
+# See environment/README.md for details.
+# -----------------------------------------------------------------------------
+#
+# scipy is not imported by any script; it is listed because scikit-learn
+# depends on it and the installed version affects the solver behaviour.
 
 pandas==2.2.2
 numpy==2.0.2
 biopython==1.83
+cobra==0.29.1
 scikit-learn==1.6.1
+scipy==1.18.0
 matplotlib==3.10.0
 seaborn==0.13.2
 networkx==3.6.1
@@ -15,5 +40,4 @@ openpyxl==3.1.5
 xlsxwriter==3.2.9
 plotly==5.24.1
 kaleido==1.2.0
-cobra==0.26.0
 joblib==1.5.3
