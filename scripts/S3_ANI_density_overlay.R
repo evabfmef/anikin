@@ -135,9 +135,9 @@ p_overlay <- ggplot(ani_df, aes(x = ANI, fill = dataset, color = dataset)) +
 
 
 # --- 7. Save figure -----------------------------------------------------------
-ggsave(file.path(output_dir, "Figure2C_ANI_density_overlay.svg"),
+ggsave(file.path(output_dir, "Figure2c_ANI_density_overlay.svg"),
        plot = p_overlay, width = 8, height = 5, device = svglite)
-ggsave(file.path(output_dir, "Figure2C_ANI_density_overlay.png"),
+ggsave(file.path(output_dir, "Figure2c_ANI_density_overlay.png"),
        plot = p_overlay, width = 8, height = 5, dpi = 300)
 
 cat("Figure saved to: ", output_dir, "\n", sep = "")

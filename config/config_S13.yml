@@ -1,0 +1,81 @@
+# =============================================================================
+# config_S13.yml
+#
+# Configuration for S13_strain_compatibility_analysis.R and
+# S13B_threshold_validation.R.
+#
+# All paths, thresholds, phenotype definitions and plot settings live here so
+# that they are separated from the data-processing code. Scripts read this
+# file at startup; nothing below is hard-coded in the scripts themselves.
+#
+# Paths are relative to the working directory. Override any value at run time
+# with command-line arguments (see --help on either script) or by pointing
+# --config at an edited copy of this file.
+# =============================================================================
+
+paths:
+  input_file: "data/strain_interactions.xlsx"
+  output_dir: "output"
+
+# --- Phenotype scale ----------------------------------------------------------
+# The swarming phenotype is scored on an ordinal scale. Each level needs a
+# numeric value, a display label and a colour. Editing this block changes the
+# scale everywhere: summaries, plots and legends.
+phenotype:
+  levels:
+    - value: 1.00
+      label: "Strong kin"
+      color: "#4CAF50"
+    - value: 0.50
+      label: "Kin"
+      color: "#9CCC65"
+    - value: 0.25
+      label: "Non-kin"
+      color: "#FF9800"
+    - value: 0.00
+      label: "Strong non-kin"
+      color: "#F44336"
+
+  # Inferential choices, kept separate from the scale itself.
+  # kin_cutoff        : phenotype >= this counts as kin (used by S13 and S13B)
+  # weak_kin_cutoff   : phenotype >= this counts as weakly kin-consistent
+  # lysis_value       : phenotype value denoting lysis
+  kin_cutoff: 0.50
+  weak_kin_cutoff: 0.25
+  lysis_value: 0.00
+
+# --- ANI thresholds -----------------------------------------------------------
+# NOTE: these are DESCRIPTIVE bins, not fitted decision boundaries. They are
+# round numbers chosen for readability. See S13B for bootstrap confidence
+# intervals, sensitivity analysis across candidate cuts, ROC/PR analysis and
+# leave-group-out validation of the boundary.
+ani:
+  strong_nonconformer: 99.7   # >= this ANI with lysis phenotype
+  moderate_nonconformer: 99.5 # >= this ANI with any non-kin phenotype
+  borderline_lower: 99.4      # borderline band lower edge (inclusive)
+  borderline_upper: 99.5      # borderline band upper edge (exclusive)
+
+# --- S13B validation settings -------------------------------------------------
+validation:
+  n_boot: 2000
+  seed: 20260724
+  sweep_from: 99.3
+  sweep_to: 99.8
+  sweep_by: 0.05
+  # Cuts carried through from S13 for comparison on the sweep plot.
+  reference_cuts: [99.4, 99.5, 99.7]
+
+# --- Plot settings ------------------------------------------------------------
+plots:
+  dpi: 300
+  base_size: 12
+  histogram_bins: 50
+  scatter:
+    width: 8
+    height: 5
+  groups:
+    width: 7
+    height: 5
+  distribution:
+    width: 12
+    height: 4

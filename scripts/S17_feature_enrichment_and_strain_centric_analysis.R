@@ -3,7 +3,7 @@
 # S17_feature_enrichment_and_strain_centric_analysis.R
 #
 # Feature enrichment and strain-centric case-control analysis of kin
-# discrimination determinants (Methods 5.11 and 5.12).
+# discrimination determinants.
 #
 # Analyses performed:
 #   (1) Feature enrichment across high-ANI pairwise interactions
@@ -12,12 +12,12 @@
 #         (a) shared presence (both strains carry the feature) and
 #         (b) feature mismatch (XOR: exactly one strain carries it),
 #       with Benjamini-Hochberg FDR correction.
-#       Produces Tables S26, S27A-B, S28, S29A-B and the volcano plots
-#       shown in Supplementary Figure S6.
+#       Produces Supplementary Tables 27, 28a-b, 29, 30a-b and the volcano plots
+#       shown in Supplementary Fig. 8 (sjared presence) and Fig. 5a (mismatch).
 #   (2) Strain-centric case-control analysis for focal strains with
 #       >=3 merging and >=5 discriminating high-ANI partners, classifying
 #       features into four presence/absence categories.
-#       Produces Tables S30 and S31.
+#       Produces Supplementary Tables 31 and 32.
 #
 # Inputs:
 #   data/strain_interactions.xlsx            -- pairwise swarming + fastANI
@@ -302,24 +302,24 @@ if (features_loaded) {
       nrow(stringent_shared), "\n")
 
   # ---- Exports ---------------------------------------------------------------
-  # Table S26: all significant shared-presence features (FDR < FDR_ALPHA)
+  # Supplementary Table 27: all significant shared-presence features (FDR < FDR_ALPHA)
   write_csv(feature_results_all |> filter(FDR < FDR_ALPHA),
-            file.path(run_output_dir, "TableS26_shared_significant.csv"))
+            file.path(run_output_dir, "SuppTable27_shared_significant.csv"))
 
-  # Table S27A: top 20 stringent candidates (FDR-first)
+  # Supplementary Table 28a: top 20 stringent candidates (FDR-first)
   write_csv(stringent_shared |>
               arrange(FDR, desc(abs_logOR), desc(n_highANI_disc)) |>
               slice_head(n = 20),
-            file.path(run_output_dir, "TableS27A_shared_top20.csv"))
+            file.path(run_output_dir, "SuppTable28a_shared_top20.csv"))
 
-  # Table S27B: top 5 stringent candidates per feature class
+  # Supplementary Table 28b: top 5 stringent candidates per feature class
   write_csv(stringent_shared |>
               group_by(Class) |>
               arrange(FDR, desc(abs_logOR), desc(n_highANI_disc),
                       .by_group = TRUE) |>
               slice_head(n = 5) |>
               ungroup(),
-            file.path(run_output_dir, "TableS27B_shared_top5_per_class.csv"))
+            file.path(run_output_dir, "SuppTable28b_shared_top5_per_class.csv"))
 
   # ---- Volcano plot ----------------------------------------------------------
   volcano_shared <- feature_results_all |>
@@ -412,24 +412,24 @@ if (features_loaded) {
       nrow(stringent_mismatch), "\n")
 
   # ---- Exports ---------------------------------------------------------------
-  # Table S28: all significant mismatch features (FDR < FDR_ALPHA)
+  # Supplementary Table 29: all significant mismatch features (FDR < FDR_ALPHA)
   write_csv(mismatch_results_all |> filter(FDR < FDR_ALPHA),
-            file.path(run_output_dir, "TableS28_mismatch_significant.csv"))
+            file.path(run_output_dir, "SuppTable29_mismatch_significant.csv"))
 
-  # Table S29A: top 20 stringent mismatch candidates (FDR-first)
+  # Supplementary Table 30a: top 20 stringent mismatch candidates (FDR-first)
   write_csv(stringent_mismatch |>
               arrange(FDR, desc(abs_logOR), desc(n_mismatch_disc)) |>
               slice_head(n = 20),
-            file.path(run_output_dir, "TableS29A_mismatch_top20.csv"))
+            file.path(run_output_dir, "SuppTable30a_mismatch_top20.csv"))
 
-  # Table S29B: top 5 stringent mismatch candidates per feature class
+  # Supplementary Table 30b: top 5 stringent mismatch candidates per feature class
   write_csv(stringent_mismatch |>
               group_by(Feature_Class) |>
               arrange(FDR, desc(abs_logOR), desc(n_mismatch_disc),
                       .by_group = TRUE) |>
               slice_head(n = 5) |>
               ungroup(),
-            file.path(run_output_dir, "TableS29B_mismatch_top5_per_class.csv"))
+            file.path(run_output_dir, "SuppTable30b_mismatch_top5_per_class.csv"))
 
   # ---- Volcano plot ----------------------------------------------------------
   x_limit <- 4.5
@@ -635,7 +635,7 @@ cat("  Focal HAS:  ", sum(recurrent$Direction == "Focal HAS"),   "\n")
 cat("  Focal LACKS:", sum(recurrent$Direction == "Focal LACKS"), "\n")
 
 # --- Exports ------------------------------------------------------------------
-# Table S30: per-focal-strain candidate counts and partner composition
+# Supplementary Table 31: per-focal-strain candidate counts and partner composition
 focal_summary <- focal_strains_df |>
   select(Strain, n_partners, n_merge, n_discriminate) |>
   left_join(
@@ -645,13 +645,13 @@ focal_summary <- focal_strains_df |>
     by = c("Strain" = "Focal")
   )
 write_csv(focal_summary,
-          file.path(run_output_dir, "TableS30_focal_strain_summary.csv"))
+          file.path(run_output_dir, "SuppTable31_focal_strain_summary.csv"))
 
 # Full candidate table (all focal-feature combinations)
 write_csv(all_candidates,
           file.path(run_output_dir, "strain_centric_all_candidates.csv"))
 
-# Table S31: recurrent candidates (>=2 focal strain contexts) with
+# Supplementary Table 32: recurrent candidates (>=2 focal strain contexts) with
 # supporting focal strain lists
 recurrent_with_strains <- recurrent |>
   left_join(
@@ -662,4 +662,4 @@ recurrent_with_strains <- recurrent |>
     by = c("Gene", "Direction")
   )
 write_csv(recurrent_with_strains,
-          file.path(run_output_dir, "TableS31_recurrent_candidates.csv"))
+          file.path(run_output_dir, "SuppTable32_recurrent_candidates.csv"))

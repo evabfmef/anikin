@@ -20,7 +20,7 @@ that group assignments are deterministic and reproducible across runs. The alter
 are equivalent by every criterion applied here — identical cover size, identical 
 retained group size, and no within-group conflicts under either — so the choice among 
 them is arbitrary and the sensitivity of downstream results to this choice is 
-reported in Supporting Information S3.
+reported in Supplementary Results 3.
 
 Excluded strains are partitioned into kin-consistent subgroups by maximal
 clique enumeration under an explicit deterministic objective.
@@ -62,7 +62,7 @@ DISC_VALUES = [0.25, 0.0]
 
 # Published exclusion sets, retained where the minimum vertex cover is not
 # unique. Both alternatives in g25 are provably minimum covers of equal size;
-# this one is fixed by the original analysis and by Supporting Information S3.
+# this one is fixed by the original analysis and by Supplementary Results 3.
 # Keys are group labels, values are strain names as they appear in INPUT_FILE.
 PINNED_EXCLUSIONS = {
     "g25": ["NRS6107", "NRS6116", "NRS6190", "P8B3", "PS11", "PS51"],
