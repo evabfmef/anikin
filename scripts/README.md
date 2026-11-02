@@ -61,7 +61,7 @@ Scripts are numbered in approximate order of use. Multi-part steps share a numbe
 ## Notes
 
 - Run scripts from the repository root: configuration, metadata and input paths are relative to it.
-- Input and output paths are defined at the top of each script, in `config/` or passed as command-line arguments, and may need to be adjusted to a local setup. Inputs and outputs of every script are listed in `docs/script_mapping.md`.
+- Input and output paths are defined at the top of each script, in `config/` or passed as command-line arguments, and may need to be adjusted to a local setup.
 - S15A and S15B share `config/config_S15.yml` (paths, phenotype scale, threshold-validation settings), so the two scripts use identical settings. From the repository root, pass `--config=config/config_S15.yml`.
 - S17A–S17D and S19 read their settings from `config/config_S16_S19.yml`. S17A–S17D load it, together with the KD group and accession tables in `metadata/`, through the helper module `kd_config.py` in this folder; select the strain panel with `--analysis=39` or `--analysis=67`. For S19, pass `--config=config/config_S16_S19.yml`.
 - S6 and S14 read directly from the Supplementary Tables workbook (S6: sheet 8; S14: sheets 5, 9 and 10).

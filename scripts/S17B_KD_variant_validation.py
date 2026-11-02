@@ -66,6 +66,9 @@ reported in the manuscript, install Biopython <= 1.83.
 
 import pandas as pd
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "config"))  # kd_config.py lives in config/
+
 from kd_config import load_config, load_strain_aliases, describe
 import re
 import os
@@ -107,7 +110,7 @@ OUTPUT_DIR          = cfg["s17b"]["output_dir"]
 # FEATURES_PATH is S17A's DIRECT output, so the pipeline runs end-to-end.
 # NOTE: in the published analysis this file was MANUALLY EDITED between S17A and
 # S17B (hypothetical + essential genes removed, manual gene categorization) —
-# see metadata/manual_curation.tsv. An automated re-run reproduces the pipeline
+# see Supplementary Information. An automated re-run reproduces the pipeline
 # but not that manual edit.
 FEATURES_PATH = os.path.join(OUTPUT_DIR, cfg["s17b"]["features_file"])
 

@@ -11,6 +11,9 @@ split genes).
 
 import pandas as pd
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "config"))  # kd_config.py lives in config/
+
 from kd_config import load_config, load_strain_aliases, describe
 import re, os, glob
 from collections import defaultdict

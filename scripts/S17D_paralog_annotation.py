@@ -12,11 +12,14 @@ Pipeline order
 S17B (variant validation)  ->  S17C (paralog check)  ->  S17D (this script).
 S17D reads the direct outputs of S17B and S17C (file names set in the config).
 In the published analysis both were manually reviewed before this step
-(see metadata/manual_curation.tsv).
+(see Supplementary Information).
 
 """
 
 import pandas as pd
+
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "config"))  # kd_config.py lives in config/
 
 from kd_config import load_config, describe
 import re, os
@@ -39,7 +42,7 @@ ANALYSIS = cfg["analysis"]
 # Inputs are the DIRECT outputs of the preceding scripts, so the pipeline
 # runs end-to-end without hand-edited files.
 # NOTE: in the published analysis, both of these were MANUALLY REVIEWED between
-# steps (see metadata/manual_curation.tsv). An automated re-run reproduces the
+# steps (see Supplementary Information). An automated re-run reproduces the
 # pipeline but not those manual corrections.
 OUTPUT_DIR      = cfg["s17d"]["output_dir"]
 CORRECTED_PATH  = os.path.join(OUTPUT_DIR, cfg["s17d"]["corrected_file"])
