@@ -4,15 +4,15 @@ Paralog Annotation of Corrected Features
 Author: Eva Stare
 
 This script annotates the validated group-specific features with paralog and
-split-gene information taken from the manual review of the S15C paralog-check
+split-gene information taken from the manual review of the S17C paralog-check
 results.
 
 Pipeline order
 --------------
-S15B (variant validation)  ->  S15C (paralog check)  ->  S15D (this script).
-S15D consumes two MANUALLY CURATED inputs produced after S15C:
-  - 67_corrected_features_analysis_reviewed.xlsx
-  - 67_paralog_check_results_reviewed.xlsx
+S17B (variant validation)  ->  S17C (paralog check)  ->  S17D (this script).
+S17D reads the direct outputs of S17B and S17C (file names set in the config).
+In the published analysis both were manually reviewed before this step
+(see metadata/manual_curation.tsv).
 
 """
 
@@ -32,7 +32,7 @@ warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 print('Ready!')
 
 # --- Configuration -------------------------------------------------------
-#   python S15D_paralog_annotation.py [--config=FILE] [--analysis=39|67]
+#   python S17D_paralog_annotation.py [--config=FILE] [--analysis=39|67]
 cfg = load_config()
 ANALYSIS = cfg["analysis"]
 
@@ -41,12 +41,12 @@ ANALYSIS = cfg["analysis"]
 # NOTE: in the published analysis, both of these were MANUALLY REVIEWED between
 # steps (see metadata/manual_curation.tsv). An automated re-run reproduces the
 # pipeline but not those manual corrections.
-OUTPUT_DIR      = cfg["s15d"]["output_dir"]
-CORRECTED_PATH  = os.path.join(OUTPUT_DIR, cfg["s15d"]["corrected_file"])
-PARALOG_PATH    = os.path.join(OUTPUT_DIR, cfg["s15d"]["paralog_file"])
-MEGAMATRIX_PATH = (cfg["s15d"]["megamatrix_67"] if ANALYSIS == "67"
-                   else cfg["s15d"]["megamatrix_39"])
-OUTPUT_PATH     = os.path.join(OUTPUT_DIR, cfg["s15d"]["output_file"])
+OUTPUT_DIR      = cfg["s17d"]["output_dir"]
+CORRECTED_PATH  = os.path.join(OUTPUT_DIR, cfg["s17d"]["corrected_file"])
+PARALOG_PATH    = os.path.join(OUTPUT_DIR, cfg["s17d"]["paralog_file"])
+MEGAMATRIX_PATH = (cfg["s17d"]["megamatrix_67"] if ANALYSIS == "67"
+                   else cfg["s17d"]["megamatrix_39"])
+OUTPUT_PATH     = os.path.join(OUTPUT_DIR, cfg["s17d"]["output_file"])
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 print(describe(cfg))
@@ -58,7 +58,7 @@ print(f'Megamatrix:         {os.path.exists(MEGAMATRIX_PATH)}')
 ## 1. Helpers & config
 """
 
-EXCLUDED_STRAIN = cfg["s15d"].get("excluded_strain")
+EXCLUDED_STRAIN = cfg["s17d"].get("excluded_strain")
 
 KD_GROUPS_FILE = cfg["metadata"]["kd_groups"]
 _kd = pd.read_csv(KD_GROUPS_FILE, sep="\t")

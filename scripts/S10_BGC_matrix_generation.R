@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# S9_BGC_matrix_generation.R
+# S10_BGC_matrix_generation.R
 #
 # antiSMASH biosynthetic gene cluster (BGC) classification and
 # presence-absence matrix generation.

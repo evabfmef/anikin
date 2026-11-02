@@ -87,42 +87,38 @@ warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
 print("Setup complete!")
 
-"""
-## 2. Mount Google Drive and Set Paths
-"""
-
 # ============================================================
 # CONFIGURATION
 # ============================================================
 # Paths, the reference strain and the variant-classification thresholds are
-# read from config_S14_S17.yml. No biological decision is hard-coded below.
+# read from config_S16_S19.yml.
 #
-#   python S15B_KD_variant_validation.py [--config=FILE] [--analysis=39|67]
+#   python S17B_KD_variant_validation.py [--config=FILE] [--analysis=39|67]
 cfg = load_config()
 ANALYSIS = cfg["analysis"]
 
-BASE_DIR            = cfg["s15b"]["base_dir"]
-GBK_DIR             = cfg["s15b"]["gbk_dir"]
+BASE_DIR            = cfg["s17b"]["base_dir"]
+GBK_DIR             = cfg["s17b"]["gbk_dir"]
 KD_GROUPS_REPS_FILE = cfg["metadata"]["kd_groups_representatives"]
-MEGAMATRIX_PATH     = (cfg["s15b"]["megamatrix_67"] if ANALYSIS == "67"
-                       else cfg["s15b"]["megamatrix_39"])
-OUTPUT_DIR          = cfg["s15b"]["output_dir"]
+MEGAMATRIX_PATH     = (cfg["s17b"]["megamatrix_67"] if ANALYSIS == "67"
+                       else cfg["s17b"]["megamatrix_39"])
+OUTPUT_DIR          = cfg["s17b"]["output_dir"]
 
-# FEATURES_PATH is S15A's DIRECT output, so the pipeline runs end-to-end.
-# NOTE: in the published analysis this file was MANUALLY EDITED between S15A and
-# S15B (hypothetical + essential genes removed, manual gene categorization) —
+# FEATURES_PATH is S17A's DIRECT output, so the pipeline runs end-to-end.
+# NOTE: in the published analysis this file was MANUALLY EDITED between S17A and
+# S17B (hypothetical + essential genes removed, manual gene categorization) —
 # see metadata/manual_curation.tsv. An automated re-run reproduces the pipeline
 # but not that manual edit.
-FEATURES_PATH = os.path.join(OUTPUT_DIR, cfg["s15b"]["features_file"])
+FEATURES_PATH = os.path.join(OUTPUT_DIR, cfg["s17b"]["features_file"])
 
 # Reference strain against which group-specific variants are compared. This is
 # a biological choice: the reference defines what counts as the ".0" /
 # unsuffixed base variant.
-REFERENCE_STRAIN = cfg["s15b"]["reference_strain"]
+REFERENCE_STRAIN = cfg["s17b"]["reference_strain"]
 
 # Variant classification thresholds (percentages); see config for rationale.
-ARTEFACT_IDENTITY = cfg["s15b"]["classification"]["artefact_identity"]
-MIN_LENGTH_RATIO  = cfg["s15b"]["classification"]["min_length_ratio"]
+ARTEFACT_IDENTITY = cfg["s17b"]["classification"]["artefact_identity"]
+MIN_LENGTH_RATIO  = cfg["s17b"]["classification"]["min_length_ratio"]
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -315,7 +311,7 @@ gene_list = [str(df_mega.iloc[0, j]) for j in range(1, df_mega.shape[1])]
 if REFERENCE_STRAIN not in strain_list:
     raise ValueError(
         f"Reference strain {REFERENCE_STRAIN!r} is not present in the "
-        f"megamatrix ({MEGAMATRIX_PATH}). Set s15b.reference_strain in the "
+        f"megamatrix ({MEGAMATRIX_PATH}). Set s17b.reference_strain in the "
         f"configuration file to a strain in this panel. "
         f"Available (first 10): {strain_list[:10]}"
     )
@@ -333,8 +329,8 @@ for j, g in enumerate(gene_list):
 # the pairwise-alignment validation (identity is then averaged across them).
 #
 # NOTE: this is intentionally a *subset* of the full group membership used in
-# script S15D (paralog annotation), which lists every strain in each group.
-# For example g50 lists 3 representatives here but all 5 members in S15D, and
+# script S17D (paralog annotation), which lists every strain in each group.
+# For example g50 lists 3 representatives here but all 5 members in S17D, and
 # g25_A lists 3 here vs the full 21 there. Alignment identity is stable across
 # group members, so a representative subset is sufficient (and much faster)
 # for validation, whereas paralog/copy-number annotation needs every strain.
@@ -775,7 +771,7 @@ if len(df_results) > 0:
     #      → assembly fragment, not a real full-length variant
     #   3. True variant:     ≥80% length ratio AND <95% AA identity
     #      → genuinely divergent protein, Roary correctly split it
-    # Thresholds come from the configuration file (s15b.classification).
+    # Thresholds come from the configuration file (s17b.classification).
     ARTEFACT_THRESHOLD = ARTEFACT_IDENTITY
     LENGTH_RATIO_THRESHOLD = MIN_LENGTH_RATIO
 

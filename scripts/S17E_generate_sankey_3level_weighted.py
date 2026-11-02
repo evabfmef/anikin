@@ -1,5 +1,5 @@
 """
-S15E_generate_sankey_3level_weighted.py
+S17E_generate_sankey_3level_weighted.py
 
 Generate three-level weighted Sankey diagram for group-specific gene features.
 
@@ -21,7 +21,7 @@ import plotly.graph_objects as go
 # =============================================================================
 
 INPUT_FILE = "data/kd/inputs/39_KD_features_summary_9cat.tsv"
-OUTPUT_DIR = "data/kd/output/39"   # S15E is the 39-strain analysis only
+OUTPUT_DIR = "data/kd/output/39"   # S17E is the 39-strain analysis only
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 REQUIRED_COLS = ["Kin group", "Gene name", "Functional category", "Category"]
 
@@ -73,9 +73,9 @@ agg_mid_right = (
 # =============================================================================
 
 preferred_kin_order = [
-    "g1", "g2", "g3", "g4", "g5", "g6",
-    "g7", "g8", "g9", "g10", "g11", "g12",
-    "g13", "g14"
+    "KD1", "KD2", "KD3", "KD4", "KD5", "KD6",
+    "KD7", "KD8", "KD9", "KD10", "KD11", "KD12",
+    "KD13", "KD14"
 ]
 
 preferred_func_order = [
@@ -123,18 +123,18 @@ print(f"Nodes: {len(left_nodes)} KD groups, {len(mid_nodes)} functional categori
 # =============================================================================
 
 kin_colors = {
-    "g1":  "rgba(99,110,250,0.85)",
-    "g2":  "rgba(239,85,59,0.85)",
-    "g3":  "rgba(0,204,150,0.85)",
-    "g4":  "rgba(171,99,250,0.85)",
-    "g5":  "rgba(255,161,90,0.85)",
-    "g6":  "rgba(25,211,243,0.85)",
-    "g7":  "rgba(255,102,146,0.85)",
-    "g8":  "rgba(182,232,128,0.85)",
-    "g9":  "rgba(255,151,255,0.85)",
-    "g10": "rgba(254,203,82,0.85)",
-    "g11": "rgba(120,120,120,0.85)",
-    "g12": "rgba(50,50,50,0.85)",
+    "KD1":  "rgba(99,110,250,0.85)",
+    "KD2":  "rgba(239,85,59,0.85)",
+    "KD3":  "rgba(0,204,150,0.85)",
+    "KD4":  "rgba(171,99,250,0.85)",
+    "KD5":  "rgba(255,161,90,0.85)",
+    "KD6":  "rgba(25,211,243,0.85)",
+    "KD7":  "rgba(255,102,146,0.85)",
+    "KD8":  "rgba(182,232,128,0.85)",
+    "KD9":  "rgba(255,151,255,0.85)",
+    "KD10": "rgba(254,203,82,0.85)",
+    "KD11": "rgba(120,120,120,0.85)",
+    "KD12": "rgba(50,50,50,0.85)",
 }
 
 func_colors = {

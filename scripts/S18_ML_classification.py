@@ -1,5 +1,5 @@
 """
-S16_ML_classification.py - Machine learning classification of kin discrimination groups
+S18_ML_classification.py - Machine learning classification of kin discrimination groups
 
 Author: Eva Stare
 
@@ -82,10 +82,9 @@ Outputs
 
 Environment
 -----------
-Run under the pinned environment in environment/S16_environment.yml. Fixed
+Run under the pinned environment in environment/environment.yml. Fixed
 seeds reproduce results only within a given scikit-learn version, so the pin is
-required rather than optional; verify with environment/S16_verify_environment.py
-before running.
+required rather than optional.
 """
 
 import importlib
@@ -112,7 +111,7 @@ from sklearn.svm import SVC
 # Configuration
 # ---------------------------------------------------------------------------
 # --- Analysis selection: "39" or "67" -----------------------------------
-ANALYSIS = "39"          # change to "39" for the 39-strain PS panel (14 KD groups)
+ANALYSIS = "39"          # change to "67" for the 67-strain panel
 if ANALYSIS not in ("39", "67"):
     raise ValueError(f"ANALYSIS must be '39' or '67', got {ANALYSIS!r}")
 

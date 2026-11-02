@@ -1,15 +1,15 @@
 # anikin
-Code and analysis scripts for **Kin discrimination in *Bacillus subtilis* is predicted by average nucleotide identity but shaped by mobile genetic elements**; Stare et al., 2026 (to be updated, in prep.)
+Code and analysis scripts for **Genomic boundaries mark social boundaries in Bacillus subtilis*; Stare et al., 2026 (to be updated, in prep.)
 
 ---
 ## Overview
 This repository contains analysis code and documentation supporting the manuscript:
  
-Title: Kin discrimination in *Bacillus subtilis* is predicted by average nucleotide identity but shaped by mobile genetic elements
+Title: Genomic boundaries mark social boundaries in *Bacillus subtilis*
  
-Authors: to be updated
+Authors: Eva Stare, Manca Mršol, Robson Parmezan Bonidia, Anna Dragoš, Jasna Kovac, Ákos T. Kovács, Ines Mandic-Mulec, Ulisses Nunes da Rocha, Polonca Stefanic
  
-Journal: to be updated
+Journal: The ISME Journal: Multidisciplinary Journal of Microbial Ecology
  
 DOI: to be updated
  
@@ -18,21 +18,17 @@ This study examines the genomic basis of kin discrimination in *Bacillus subtili
 ---
  
 ## Abstract
- 
-### Background
-Social interactions in bacteria can generate cooperative subpopulations, yet the genomic principles defining social compatibility within natural populations remain poorly understood. In *Bacillus subtilis*, kin discrimination (KD) during swarming enables strains to distinguish related from unrelated partners, but its genomic basis remains unresolved. Using 313 high-quality genomes, we identified several genomic
-determinants of KD through group-specific feature association and supervised machine-learning classification.
+To be updated at publication
  
 ### Results
-Average nucleotide identity (ANI; computed with fastANI), core-genome phylogeny, and accessory gene content converged on comparable strain groupings. ANI analysis revealed a pronounced underrepresentation of genome pairs across the closely related range, both locally and species-wide, with the largest gap in the pooled distribution at 99.26–99.40% — an intraspecific "ANI gap." Phenotypically, ~99.5% ANI marked the kin boundary, yet this threshold proved necessary but not sufficient: a substantial fraction of strain pairs above it showed incompatibility, including lysis between strains sharing >99.9% ANI. Three analytical frameworks converged on a multi-layered KD architecture — recognition through cell-surface gene cassettes, antagonism via LXG toxin diversification and SPβ prophage mosaicism, and communication/exclusion through variation in the conjugative element ICEBs1, quorum sensing, and spore-coat composition.
+To be updated at publication
  
 ### Conclusion
-The phenotypic ANI boundary at ~99.5% delineates social compatibility in *B. subtilis*, and incompatibility between highly related strains is driven less by core-genome divergence than by asymmetric carriage of mobile genetic elements. ANI is established as a practical predictor of kin group boundaries, an intraspecific underrepresentation of genome pairs is observed across the analysed species-wide genome collection, and accessory-genome mosaicism — particularly SPβ prophage variation, LXG polymorphic toxin/antitoxin variants, and asymmetric carriage of mobile-element cargo (PBSX, ICEBs1, skin element) — is identified as the primary determinant overriding genome-wide relatedness.
+To be updated at publication
  
 ## Key Findings
-- Kin discrimination groups in *Bacillus subtilis* closely mirror genome-wide population structure and are governed by a multi-layered, modular accessory-genome architecture rather than by single conserved determinants.
-- A phenotypic ANI boundary at ~99.5% separates socially compatible and incompatible *B. subtilis* populations; the ANI distribution itself is underrepresented across the closely related range, with the largest gap at 99.26–99.40%. ANI ≥99.5% is necessary but not sufficient for social compatibility: fastANI predicts kin group boundaries but does not determine compatibility among strains above the threshold.
-- Closely related strains can remain socially incompatible despite sharing >99.9% genome identity, with incompatibility driven primarily by asymmetric carriage of SPβ prophages, LXG toxin systems, and other mobile genetic elements.
+To be updated at publication
+
 ---
  
 ## Repository structure

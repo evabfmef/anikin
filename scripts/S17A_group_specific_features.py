@@ -1,5 +1,5 @@
 """
-S15A_group_specific_features.py — Identify KD Group-Specific Genomic Features
+S17A_group_specific_features.py — Identify KD Group-Specific Genomic Features
 -----------------------------------------------------------------------------
 Author: Eva Stare
 
@@ -17,7 +17,7 @@ it is satisfied readily by chance; features from such groups are reported for
 completeness but are strain-specific rather than group-associated, and are not
 treated as equivalent evidence. Groups are therefore annotated by size class
 (SINGLETON, PAIR, MULTI) in a separate summary file (group_size_summary.xlsx /
-group_summary.tsv); the feature workbook consumed by S15B-S15D is unchanged. 
+group_summary.tsv); the feature workbook consumed by S17B-S17D is unchanged. 
 Statistically supported associations are assessed separately by the pairwise 
 enrichment analysis, which operates at the interaction level rather than the group level.
 
@@ -35,24 +35,24 @@ from kd_config import load_config, load_kd_groups, describe
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-#   python S15A_group_specific_features.py [--config=FILE] [--analysis=39|67]
+#   python S17A_group_specific_features.py [--config=FILE] [--analysis=39|67]
 cfg = load_config()
 ANALYSIS = cfg["analysis"]
 
-INPUT_FILE = (cfg["s15a"]["input_file_67"] if ANALYSIS == "67"
-              else cfg["s15a"]["input_file_39"])
-OUTPUT_DIR   = cfg["s15a"]["output_dir"]
-OUTPUT_FILE  = os.path.join(OUTPUT_DIR, cfg["s15a"]["output_file"])
-# Written separately: S15B and S15C parse every sheet of OUTPUT_FILE as a KD group.
-SUMMARY_FILE = os.path.join(OUTPUT_DIR, cfg["s15a"]["summary_file"])
+INPUT_FILE = (cfg["s17a"]["input_file_67"] if ANALYSIS == "67"
+              else cfg["s17a"]["input_file_39"])
+OUTPUT_DIR   = cfg["s17a"]["output_dir"]
+OUTPUT_FILE  = os.path.join(OUTPUT_DIR, cfg["s17a"]["output_file"])
+# Written separately: S17B and S17C parse every sheet of OUTPUT_FILE as a KD group.
+SUMMARY_FILE = os.path.join(OUTPUT_DIR, cfg["s17a"]["summary_file"])
 
 # Group memberships from metadata/ (version-controlled TSV).
 STRAIN_GROUPS = load_kd_groups(cfg)
 
 # Size-class boundaries; the exact-pattern criterion is descriptive and its
 # interpretation depends on group size (see module docstring).
-SINGLETON_MAX = cfg["s15a"]["size_classes"]["singleton_max"]
-PAIR_MAX      = cfg["s15a"]["size_classes"]["pair_max"]
+SINGLETON_MAX = cfg["s17a"]["size_classes"]["singleton_max"]
+PAIR_MAX      = cfg["s17a"]["size_classes"]["pair_max"]
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 print(describe(cfg))
@@ -134,7 +134,7 @@ df_unique = pd.DataFrame.from_dict(features_unique_to_group, orient="index")
 df_absent = pd.DataFrame.from_dict(features_absent_in_group, orient="index")
 
 # Per-group summary annotated by size class. Written to a separate file rather
-# than added as a sheet to OUTPUT_FILE: scripts S15B and S15C iterate over every
+# than added as a sheet to OUTPUT_FILE: scripts S17B and S17C iterate over every
 # sheet of that workbook and treat each as a KD group, so an extra sheet would
 # be parsed as a phantom group.
 df_summary = pd.DataFrame({

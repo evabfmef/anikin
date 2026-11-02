@@ -22,22 +22,22 @@ print('Ready!')
 
 # --- Configuration -------------------------------------------------------
 # Paths, the split-gene distance and the startup sanity-check strain list are
-# read from config_S14_S17.yml.
+# read from config_S16_S19.yml.
 #
-#   python S15C_paralog_check.py [--config=FILE] [--analysis=39|67]
+#   python S17C_paralog_check.py [--config=FILE] [--analysis=39|67]
 cfg = load_config()
 ANALYSIS = cfg["analysis"]
 
-GBK_DIR       = cfg["s15c"]["gbk_dir"]
-OUTPUT_DIR    = cfg["s15c"]["output_dir"]
-FEATURES_PATH = os.path.join(OUTPUT_DIR, cfg["s15c"]["features_file"])
+GBK_DIR       = cfg["s17c"]["gbk_dir"]
+OUTPUT_DIR    = cfg["s17c"]["output_dir"]
+FEATURES_PATH = os.path.join(OUTPUT_DIR, cfg["s17c"]["features_file"])
 
 # Two copies of the same gene closer together than this are treated as a
 # candidate split gene rather than as independent paralogs.
-SPLIT_GENE_DISTANCE_BP = cfg["s15c"]["split_gene_distance_bp"]
+SPLIT_GENE_DISTANCE_BP = cfg["s17c"]["split_gene_distance_bp"]
 
 # Diagnostic only: strains printed at startup to confirm GBK filename mapping
-CHECK_STRAINS = list(cfg["s15c"].get("check_strains") or [])
+CHECK_STRAINS = list(cfg["s17c"].get("check_strains") or [])
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -59,7 +59,6 @@ print(f'GBK files: {len(gbk_files)}')
 # STRAIN NAME <-> FILENAME MAPPING
 # Needed because non-PS strains have GCF accession filenames
 # ============================================================
-# Strain -> assembly-filename map from metadata (reviewer issue #14).
 # In-house genomes without a GCF accession map to their own name.
 STRAIN_TO_FILENAME = load_strain_aliases(cfg)
 

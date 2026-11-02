@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# S6_PHASTER_matrix_generation.R
+# S7_PHASTER_matrix_generation.R
 #
 # PHASTER prophage presence/absence matrix generation.
 #

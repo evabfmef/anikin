@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# S11B_TF_matrix_generation.R
+# S12B_TF_matrix_generation.R
 #
 # Transcription factor (TF) presence-absence matrix generation.
 #
@@ -17,7 +17,7 @@ suppressPackageStartupMessages({
 
 # --- 1. Paths -----------------------------------------------------------------
 files_directory <- "data/GEM/input/TF_mapping"
-output_dir      <- "output"
+output_dir      <- "data/TF/output"
 
 if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
 

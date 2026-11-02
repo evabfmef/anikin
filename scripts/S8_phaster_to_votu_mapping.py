@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-S7_phaster_to_votu_mapping.py
+S8_phaster_to_votu_mapping.py
 
 Author: Eva Stare
 

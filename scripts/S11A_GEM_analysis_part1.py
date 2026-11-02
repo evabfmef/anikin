@@ -1,5 +1,5 @@
 """
-S10A_GEM_analysis_part1.py — Bidirectional BLASTp and Homology Matrix Generation
+S11A_GEM_analysis_part1.py — Bidirectional BLASTp and Homology Matrix Generation
 -----------------------------------------------------------------------------
 Author: Eva Stare
 
@@ -32,7 +32,6 @@ from Bio import SeqIO
 import cobra
 import subprocess
 import shutil
-import sys
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -237,10 +236,10 @@ for blast_file in blast_files:
         else:
             ids.append("None")
             pids.append(0)
-    for col in ortho_matrix.columns:
-        if col in blast_file:
-            ortho_matrix[col] = pids
-            geneIDs_matrix[col] = ids
+    strain = os.path.basename(blast_file)[len(f"{REFERENCE_ID}_vs_"):-len("_parsed.csv")]
+    if strain in ortho_matrix.columns:
+        ortho_matrix[strain] = pids
+        geneIDs_matrix[strain] = ids
 
 # ---------------------------------------------------------------------------
 # 6. Binarize at identity threshold

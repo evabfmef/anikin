@@ -1,14 +1,14 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# S17_feature_enrichment_and_strain_centric_analysis.R
+# S19_feature_enrichment_and_strain_centric_analysis.R
 #
 # Feature enrichment and strain-centric case-control analysis of kin
 # discrimination determinants.
 #
 # Analyses performed:
 #   (1) Feature enrichment across high-ANI pairwise interactions
-#       (threshold set in config_S14_S17.yml; 99.5% in the published run)
-#       interactions using Fisher's exact tests for
+#       (threshold set in config_S16_S19.yml; 99.5% in the published run)
+#       using Fisher's exact tests for
 #         (a) shared presence (both strains carry the feature) and
 #         (b) feature mismatch (XOR: exactly one strain carries it),
 #       with Benjamini-Hochberg FDR correction.
@@ -28,9 +28,9 @@
 #                                               TFs, metabolic reactions, BGCs).
 #
 # Threshold summaries, Pearson correlation, and nonconforming-pair tabulation
-# are produced separately by S13_strain_compatibility_analysis.R.
+# are produced separately by S15A_strain_compatibility_analysis.R.
 #
-# Usage : Rscript S17_feature_enrichment_and_strain_centric_analysis.R
+# Usage : Rscript S19_feature_enrichment_and_strain_centric_analysis.R
 #
 # Author: Eva Stare
 # =============================================================================
@@ -44,47 +44,47 @@ suppressPackageStartupMessages({
 
 # =============================================================================
 # CONFIGURATION LAYER
-# Paths and all inferential thresholds are read from config_S14_S17.yml so
+# Paths and all inferential thresholds are read from config_S16_S19.yml so
 # that biological and statistical decisions are reviewable without reading
 # the analysis code. No threshold is hard-coded below.
 #
-#   Rscript S17_feature_enrichment_and_strain_centric_analysis.R [--config=FILE]
+#   Rscript S19_feature_enrichment_and_strain_centric_analysis.R [--config=FILE]
 # =============================================================================
 suppressPackageStartupMessages(library(yaml))
 
 .args <- commandArgs(trailingOnly = TRUE)
 .cfg_arg <- grep("^--config=", .args, value = TRUE)
 config_file <- if (length(.cfg_arg)) sub("^--config=", "", .cfg_arg[1]) else
-                 "config_S14_S17.yml"
+                 "config_S16_S19.yml"
 if (!file.exists(config_file))
   stop("Configuration file not found: ", config_file,
-       "\n  Expected config_S14_S17.yml in the working directory, or pass",
+       "\n  Expected config_S16_S19.yml in the working directory, or pass",
        " --config=FILE.", call. = FALSE)
 cfg <- yaml::read_yaml(config_file)
 
-interaction_file <- cfg$s17$interaction_file
-feature_file     <- cfg$s17$feature_file
-run_output_dir   <- cfg$s17$output_dir
+interaction_file <- cfg$s19$interaction_file
+feature_file     <- cfg$s19$feature_file
+run_output_dir   <- cfg$s19$output_dir
 
-# High-ANI subset. Same descriptive boundary as S13A; see S13B for validation.
-HIGH_ANI <- cfg$s17$high_ani_threshold
+# High-ANI subset. Same descriptive boundary as S15A; see S15B for validation.
+HIGH_ANI <- cfg$s19$high_ani_threshold
 
 # Inferential choices for the Fisher's exact enrichment tests.
-FDR_ALPHA    <- cfg$s17$enrichment$fdr_alpha
-OR_UPPER     <- cfg$s17$enrichment$or_upper
-OR_LOWER     <- cfg$s17$enrichment$or_lower
-MIN_COUNT    <- cfg$s17$enrichment$min_count
-LOG2OR_LABEL <- cfg$s17$enrichment$log2or_label
+FDR_ALPHA    <- cfg$s19$enrichment$fdr_alpha
+OR_UPPER     <- cfg$s19$enrichment$or_upper
+OR_LOWER     <- cfg$s19$enrichment$or_lower
+MIN_COUNT    <- cfg$s19$enrichment$min_count
+LOG2OR_LABEL <- cfg$s19$enrichment$log2or_label
 
 # Strain-centric case-control inclusion criteria (separate from MIN_COUNT).
-SC_MIN_MERGE <- cfg$s17$strain_centric$min_merge
-SC_MIN_DISC  <- cfg$s17$strain_centric$min_discriminate
+SC_MIN_MERGE <- cfg$s19$strain_centric$min_merge
+SC_MIN_DISC  <- cfg$s19$strain_centric$min_discriminate
 
-# Phenotype coding, shared with S14 via the same config.
+# Kin cutoff from the shared configuration file.
 KIN_CUTOFF <- cfg$phenotype$kin_cutoff
 
-PLOT_DPI  <- cfg$s17$plots$dpi
-PLOT_BASE <- cfg$s17$plots$base_size
+PLOT_DPI  <- cfg$s19$plots$dpi
+PLOT_BASE <- cfg$s19$plots$base_size
 
 dir.create(run_output_dir,                       recursive = TRUE, showWarnings = FALSE)
 dir.create(file.path(run_output_dir, "figures"), recursive = TRUE, showWarnings = FALSE)

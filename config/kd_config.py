@@ -1,183 +1,177 @@
-"""
-kd_config.py - Shared configuration loader for S14 and the S15 series
----------------------------------------------------------------------
-Author: Eva Stare
+# =============================================================================
+# config_S16_S19.yml
+#
+# Configuration for S17A-S17D and S19. (S16 is self-contained; its inputs and
+# the pinned minimum vertex cover are defined at the top of the script.)
+#
+# All thresholds, reference-strain choices and inferential cut-offs live here
+# so that biological decisions are reviewable without reading Python or R
+# internals. Strain-level data (KD group memberships, representative strains,
+# genome accessions) lives in TSV files under metadata/, listed in the
+# `metadata:` block below.
+#
+# Companion file: config_S15.yml (S15A / S15B).
+# =============================================================================
 
-Loads config_S14_S17.yml and the metadata TSVs it points to, so that
-thresholds, reference-strain choices and strain-level data are defined once
-and are reviewable without reading script internals.
+# --- Analysis panel -----------------------------------------------------------
+# Selects which strain panel the S17 series operates on. Overridable on the
+# command line with --analysis=39.
+analysis: "67"
 
-Usage in a script:
+# --- Metadata tables ----------------------------------------------------------
+# Strain-level biological data. {analysis} is substituted at run time.
+metadata:
+  kd_groups: "metadata/kd_groups_{analysis}.tsv"
+  kd_groups_representatives: "metadata/kd_groups_representatives_{analysis}.tsv"
+  # Strain name -> genome file name (public genomes are stored under their
+  # assembly accession). Also lists the NCBI accession of every genome.
+  accessions: "metadata/accessions.tsv"
 
-    from kd_config import load_config
-    cfg = load_config()                    # reads config_S14_S17.yml
-    cfg = load_config(analysis="39")       # override panel
-    cfg = load_config("my_config.yml")     # alternative config file
+# --- Phenotype coding ---------------------------------------------------------
+# Shared with config_S15.yml; kept here so S19 is self-contained.
+#   1.0  = strong kin (merge)        0.25 = weak non-kin (discrimination)
+#   0.5  = weak kin (merge)          0.0  = strong non-kin (discrimination)
+phenotype:
+  kin_values: [1.0, 0.5]
+  discrimination_values: [0.25, 0.0]
+  kin_cutoff: 0.5
+  # Free-text phenotype synonyms accepted by S19's parser, mapped to values.
+  text_aliases:
+    Merging: 1.0
+    Contact: 0.5
+    Thick: 0.25
+    Lysis: 0.0
+  # Display labels for phenotype categories (S19).
+  category_labels:
+    1.0: "Merging"
+    0.5: "Contact"
+    0.25: "Thick boundary"
+    0.0: "Lysis"
 
-Paths containing "{analysis}" are substituted automatically.
+# =============================================================================
+# S17A - group-specific features
+# =============================================================================
+s17a:
+  input_file_67: "data/kd/inputs/67_matrix_strains_as_rows.tsv"
+  input_file_39: "data/matrices_40PS/40PS_matrix_genes.tsv"
+  output_dir: "data/kd/output/{analysis}"
+  output_file: "features_analysis_results.xlsx"
+  summary_file: "group_size_summary.xlsx"
 
-Command-line overrides supported by the scripts that use this module:
-    --config=FILE      configuration file  (default: config_S14_S17.yml)
-    --analysis=39|67   strain panel        (overrides config)
-"""
+  # Group size classes. The exact-pattern criterion is descriptive, and its
+  # interpretation depends on group size: in a singleton it reduces to private
+  # accessory content, and in a pair it is satisfied readily by chance.
+  size_classes:
+    singleton_max: 1
+    pair_max: 2
+    # anything larger is MULTI
 
-import os
-import sys
+# =============================================================================
+# S17B - variant validation by pairwise protein alignment
+# =============================================================================
+s17b:
+  base_dir: "data/kd/"
+  gbk_dir: "data/raw/gbk"
+  megamatrix_67: "data/kd/inputs/67_matrix_strains_as_rows.tsv"
+  megamatrix_39: "data/kd/inputs/39_matrix_strains_as_rows.tsv"
+  features_file: "features_analysis_results.xlsx"   # S17A output
+  output_dir: "data/kd/output/{analysis}"
 
-import pandas as pd
-import yaml
+  # Reference strain against which group-specific variants are compared.
+  # This is a biological choice: the reference defines what counts as the
+  # ".0" / unsuffixed base variant.
+  reference_strain: "NCIB_3610"
 
-DEFAULT_CONFIG = "config_S14_S17.yml"
+  # Alignment settings.
+  alignment:
+    substitution_matrix: "BLOSUM62"
+    open_gap_score: -10
+    extend_gap_score: -0.5
 
+  # Variant classification thresholds (percentages).
+  #   artefact_identity : >= this AA identity suggests the split is a
+  #                       clustering artefact rather than a real variant
+  #                       (Roary's own clustering threshold was 80%)
+  #   min_length_ratio  : < this length ratio suggests a truncated or
+  #                       fragmented gene rather than a full-length variant
+  classification:
+    artefact_identity: 95
+    min_length_ratio: 80
 
-def parse_cli(argv=None):
-    """Parse --key=value arguments. Returns a dict; ignores unknown keys."""
-    argv = sys.argv[1:] if argv is None else argv
-    out = {}
-    for a in argv:
-        if a in ("--help", "-h"):
-            out["help"] = True
-            continue
-        if a.startswith("--") and "=" in a:
-            k, v = a[2:].split("=", 1)
-            out[k.replace("-", "_")] = v
-    return out
+# =============================================================================
+# S17C - paralog / multi-copy detection
+# =============================================================================
+s17c:
+  gbk_dir: "data/raw/gbk"
+  features_file: "features_analysis_results.xlsx"   # S17A output
+  output_dir: "data/kd/output/{analysis}"
 
+  # Two copies of the same gene closer together than this are treated as a
+  # candidate split gene rather than as independent paralogs.
+  split_gene_distance_bp: 5000
 
-def _subst(obj, analysis):
-    """Recursively substitute {analysis} in string values."""
-    if isinstance(obj, str):
-        return obj.replace("{analysis}", str(analysis))
-    if isinstance(obj, dict):
-        return {k: _subst(v, analysis) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_subst(v, analysis) for v in obj]
-    return obj
+  # Strains printed at startup as a sanity check that GBK filename mapping
+  # resolved correctly. Diagnostic only; does not affect results.
+  # Leave empty to skip the check.
+  check_strains:
+    - "NCIB_3610"
+    - "PS-216"
+    - "NRS6085"
+    - "73"
+    - "BS16045"
+    - "PS-108"
 
+# =============================================================================
+# S17D - paralog annotation of curated features
+# =============================================================================
+s17d:
+  megamatrix_67: "data/kd/inputs/67_mega_matrix_full.tsv"
+  megamatrix_39: "data/kd/inputs/39_mega_matrix_full.tsv"
+  corrected_file: "corrected_features_analysis.xlsx"        # S17B, reviewed
+  paralog_file: "{analysis}_paralog_check_results.xlsx"     # S17C, reviewed
+  output_dir: "data/kd/output/{analysis}"
+  output_file: "{analysis}_corrected_features_annotated_paralogs.xlsx"
 
-def load_config(config_file=None, analysis=None, argv=None):
-    """
-    Load the configuration file, apply command-line overrides, and substitute
-    {analysis} placeholders throughout.
+  # Strain to drop from the matrix before annotation, if any (null = none).
+  excluded_strain: null
 
-    Precedence: explicit argument > command line > config file default.
-    """
-    cli = parse_cli(argv)
-    config_file = config_file or cli.get("config") or DEFAULT_CONFIG
+# =============================================================================
+# S19 - feature enrichment and strain-centric analysis
+# =============================================================================
+s19:
+  interaction_file: "data/strain_interactions.xlsx"
+  feature_file: "data/Filtered_presence_absence_78strains.xlsx"
+  output_dir: "output"
 
-    if not os.path.exists(config_file):
-        raise FileNotFoundError(
-            f"Configuration file not found: {config_file}\n"
-            f"  Expected {DEFAULT_CONFIG} in the working directory, "
-            f"or pass --config=FILE."
-        )
+  # High-ANI subset on which the enrichment tests are run. This is the same
+  # descriptive boundary used in S15A; see S15B for its validation. It is a
+  # round number chosen for readability, not a fitted decision threshold.
+  high_ani_threshold: 99.5
 
-    with open(config_file) as fh:
-        cfg = yaml.safe_load(fh)
+  # Inferential choices for the Fisher's exact enrichment tests.
+  #   fdr_alpha        : Benjamini-Hochberg FDR cut-off for significance
+  #   or_upper/or_lower: effect-size bounds for the "notable" filtered tables
+  #                      (OR > upper or OR < lower)
+  #   min_count        : minimum discriminating pairs carrying the feature,
+  #                      applied to the filtered tables only
+  #   log2or_label     : |log2 OR| above which volcano points are labelled as
+  #                      directionally enriched
+  enrichment:
+    fdr_alpha: 0.05
+    or_upper: 2.0
+    or_lower: 0.5
+    min_count: 5
+    log2or_label: 1.0
 
-    analysis = str(analysis or cli.get("analysis") or cfg.get("analysis"))
-    if analysis not in ("39", "67"):
-        raise ValueError(
-            f"analysis must be '39' or '67', got {analysis!r}. "
-            f"Set `analysis:` in {config_file} or pass --analysis=67."
-        )
+  # Strain-centric case-control analysis. These are separate
+  # from the enrichment min_count above: a strain enters the analysis only if
+  # it has at least this many merging and discriminating high-ANI partners.
+  strain_centric:
+    min_merge: 3
+    min_discriminate: 5
 
-    cfg = _subst(cfg, analysis)
-    cfg["analysis"] = analysis
-    cfg["_config_file"] = config_file
-    return cfg
-
-
-# ---------------------------------------------------------------------------
-# Metadata loaders
-# ---------------------------------------------------------------------------
-
-def _require(path, what):
-    if not os.path.exists(path):
-        raise FileNotFoundError(
-            f"{what} not found: {path}\n"
-            f"  Check the `metadata:` block of the configuration file."
-        )
-    return path
-
-
-def load_kd_groups(cfg, representatives=False):
-    """
-    Return {kd_group: [strain, ...]} from the metadata TSV.
-
-    Set representatives=True to load the representatives table instead of the
-    full membership table.
-    """
-    key = "kd_groups_representatives" if representatives else "kd_groups"
-    path = _require(cfg["metadata"][key], "KD group table")
-    df = pd.read_csv(path, sep="\t")
-    for col in ("kd_group", "strain"):
-        if col not in df.columns:
-            raise ValueError(
-                f"{path} is missing required column '{col}'. "
-                f"Expected columns: kd_group, strain."
-            )
-    return df.groupby("kd_group")["strain"].apply(list).to_dict()
-
-
-def load_strain_aliases(cfg, alias_type="filename_or_assembly"):
-    """
-    Return {canonical_strain: alias_value} for the requested alias type.
-
-    Strains without an alias of that type map to themselves, so the result is
-    safe to use as a total lookup.
-    """
-    path = _require(cfg["metadata"]["strain_aliases"], "Strain alias table")
-    df = pd.read_csv(path, sep="\t")
-    required = {"canonical_strain", "alias_type", "alias_value"}
-    missing = required - set(df.columns)
-    if missing:
-        raise ValueError(
-            f"{path} is missing required column(s): {sorted(missing)}. "
-            f"Expected: canonical_strain, alias_type, alias_value."
-        )
-    sub = df[df["alias_type"] == alias_type]
-    mapping = sub.set_index("canonical_strain")["alias_value"].to_dict()
-    return {s: mapping.get(s, s) for s in df["canonical_strain"].unique()}
-
-
-def load_pinned_exclusions(cfg):
-    """
-    Return {kd_group: [strain, ...]} of a-priori-fixed vertex-cover solutions.
-
-    Returns an empty dict if pinning is disabled in the config, or if the file
-    is absent (pinning is optional: without it, S14 takes the first minimum
-    cover in sorted order, which is still deterministic).
-    """
-    if not cfg.get("s14", {}).get("use_pinned_exclusions", True):
-        return {}
-
-    path = cfg["metadata"].get("pinned_exclusions")
-    if not path or not os.path.exists(path):
-        return {}
-
-    df = pd.read_csv(path, sep="\t")
-    for col in ("kd_group", "strain"):
-        if col not in df.columns:
-            raise ValueError(
-                f"{path} is missing required column '{col}'. "
-                f"Expected columns: kd_group, strain[, rationale]."
-            )
-    return df.groupby("kd_group")["strain"].apply(list).to_dict()
-
-
-def load_manual_curation(cfg):
-    """Return the manual curation table as a DataFrame, or None if absent."""
-    path = cfg["metadata"].get("manual_curation")
-    if not path or not os.path.exists(path):
-        return None
-    return pd.read_csv(path, sep="\t")
-
-
-def describe(cfg):
-    """One-line-per-item summary printed at script start, for the run log."""
-    lines = [
-        f"Configuration:      {cfg['_config_file']}",
-        f"Analysis panel:     {cfg['analysis']}",
-    ]
-    return "\n".join(lines)
+  plots:
+    dpi: 300
+    base_size: 12
+    point_alpha: 0.6
+    point_size: 2

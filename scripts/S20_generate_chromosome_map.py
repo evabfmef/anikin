@@ -1,5 +1,5 @@
 """
-S18_generate_chromosome_map.py
+S20_generate_chromosome_map.py
 
 Generate chromosome map SVG for recurrent candidate genes.
 

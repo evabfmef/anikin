@@ -5,12 +5,12 @@
 #
 # Author: Eva Stare
 #
-# Usage: bash batch_predicTF.sh <predictf_path> <input_dir> <output_dir>
+# Usage: bash S12A_batch_predicTF.sh <predictf_path> <input_dir> <output_dir>
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-PREDICTF_PATH="${1:?Usage: batch_predicTF.sh <predictf_path> <input_dir> <output_dir>}"
+PREDICTF_PATH="${1:?Usage: S12A_batch_predicTF.sh <predictf_path> <input_dir> <output_dir>}"
 INPUT_DIR="${2:?Provide input directory containing .fa/.faa files}"
 OUTPUT_BASE_DIR="${3:?Provide output directory}"
 SCRIPT_PATH="$PREDICTF_PATH/scripts/predictf_in_genome.sh"

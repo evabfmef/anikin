@@ -1,19 +1,20 @@
 # =============================================================================
-# config_S14_S17.yml
+# config_S16_S19.yml
 #
-# Configuration for S14, S15A-S15D and S17.
+# Configuration for S17A-S17D and S19. (S16 is self-contained; its inputs and
+# the pinned minimum vertex cover are defined at the top of the script.)
 #
 # All thresholds, reference-strain choices and inferential cut-offs live here
 # so that biological decisions are reviewable without reading Python or R
-# internals. Strain-level data (group memberships, aliases, pinned exclusions,
-# manual curation) lives in version-controlled TSV files under metadata/,
-# listed in the `metadata:` block below.
+# internals. Strain-level data (KD group memberships, representative strains,
+# genome accessions) lives in TSV files under metadata/, listed in the
+# `metadata:` block below.
 #
-# Companion file: config_S13.yml (S13A / S13B).
+# Companion file: config_S15.yml (S15A / S15B).
 # =============================================================================
 
 # --- Analysis panel -----------------------------------------------------------
-# Selects which strain panel the S15 series operates on. Overridable on the
+# Selects which strain panel the S17 series operates on. Overridable on the
 # command line with --analysis=39.
 analysis: "67"
 
@@ -22,25 +23,25 @@ analysis: "67"
 metadata:
   kd_groups: "metadata/kd_groups_{analysis}.tsv"
   kd_groups_representatives: "metadata/kd_groups_representatives_{analysis}.tsv"
-  strain_aliases: "metadata/strain_aliases.tsv"
-  manual_curation: "metadata/manual_curation.tsv"
-  pinned_exclusions: "metadata/pinned_exclusions.tsv"
+  # Strain name -> genome file name (public genomes are stored under their
+  # assembly accession). Also lists the NCBI accession of every genome.
+  accessions: "metadata/accessions.tsv"
 
 # --- Phenotype coding ---------------------------------------------------------
-# Shared with config_S13.yml; kept here so S14 and S17 are self-contained.
+# Shared with config_S15.yml; kept here so S19 is self-contained.
 #   1.0  = strong kin (merge)        0.25 = weak non-kin (discrimination)
 #   0.5  = weak kin (merge)          0.0  = strong non-kin (discrimination)
 phenotype:
   kin_values: [1.0, 0.5]
   discrimination_values: [0.25, 0.0]
   kin_cutoff: 0.5
-  # Free-text phenotype synonyms accepted by S17's parser, mapped to values.
+  # Free-text phenotype synonyms accepted by S19's parser, mapped to values.
   text_aliases:
     Merging: 1.0
     Contact: 0.5
     Thick: 0.25
     Lysis: 0.0
-  # Display labels for phenotype categories (S17).
+  # Display labels for phenotype categories (S19).
   category_labels:
     1.0: "Merging"
     0.5: "Contact"
@@ -48,35 +49,9 @@ phenotype:
     0.0: "Lysis"
 
 # =============================================================================
-# S14 - KD group validation
+# S17A - group-specific features
 # =============================================================================
-s14:
-  input_file: "data/processed/strain_interactions.tsv"
-  output_dir: "data/kd/output"
-  output_file: "KD_Validation_with_Subgroups.xlsx"
-
-  columns:
-    s1: "S1"
-    s2: "S2"
-    phenotype: "Phenotype_interaction"
-    group_s1: "Group_S1"
-    group_s2: "Group_S2"
-
-  # Where the minimum vertex cover is not unique, the solution to use is fixed
-  # a priori for reproducibility. The specific strain sets are in
-  # metadata/pinned_exclusions.tsv, not here, so that the biological choice is
-  # inspectable as data. Set to false to take the first cover in sorted order
-  # instead (results then depend only on the enumeration, not on curation).
-  use_pinned_exclusions: true
-
-  # Exhaustive enumeration is tractable at these group sizes. Guard against
-  # accidentally running it on a group large enough to hang.
-  max_group_size_for_exact_cover: 30
-
-# =============================================================================
-# S15A - group-specific features
-# =============================================================================
-s15a:
+s17a:
   input_file_67: "data/kd/inputs/67_matrix_strains_as_rows.tsv"
   input_file_39: "data/matrices_40PS/40PS_matrix_genes.tsv"
   output_dir: "data/kd/output/{analysis}"
@@ -92,14 +67,14 @@ s15a:
     # anything larger is MULTI
 
 # =============================================================================
-# S15B - variant validation by pairwise protein alignment
+# S17B - variant validation by pairwise protein alignment
 # =============================================================================
-s15b:
+s17b:
   base_dir: "data/kd/"
   gbk_dir: "data/raw/gbk"
   megamatrix_67: "data/kd/inputs/67_matrix_strains_as_rows.tsv"
   megamatrix_39: "data/kd/inputs/39_matrix_strains_as_rows.tsv"
-  features_file: "features_analysis_results.xlsx"   # S15A output
+  features_file: "features_analysis_results.xlsx"   # S17A output
   output_dir: "data/kd/output/{analysis}"
 
   # Reference strain against which group-specific variants are compared.
@@ -110,8 +85,8 @@ s15b:
   # Alignment settings.
   alignment:
     substitution_matrix: "BLOSUM62"
-    open_gap_score: -11
-    extend_gap_score: -1
+    open_gap_score: -10
+    extend_gap_score: -0.5
 
   # Variant classification thresholds (percentages).
   #   artefact_identity : >= this AA identity suggests the split is a
@@ -124,11 +99,11 @@ s15b:
     min_length_ratio: 80
 
 # =============================================================================
-# S15C - paralog / multi-copy detection
+# S17C - paralog / multi-copy detection
 # =============================================================================
-s15c:
+s17c:
   gbk_dir: "data/raw/gbk"
-  features_file: "features_analysis_results.xlsx"   # S15A output
+  features_file: "features_analysis_results.xlsx"   # S17A output
   output_dir: "data/kd/output/{analysis}"
 
   # Two copies of the same gene closer together than this are treated as a
@@ -147,13 +122,13 @@ s15c:
     - "PS-108"
 
 # =============================================================================
-# S15D - paralog annotation of curated features
+# S17D - paralog annotation of curated features
 # =============================================================================
-s15d:
+s17d:
   megamatrix_67: "data/kd/inputs/67_mega_matrix_full.tsv"
   megamatrix_39: "data/kd/inputs/39_mega_matrix_full.tsv"
-  corrected_file: "corrected_features_analysis.xlsx"        # S15B, reviewed
-  paralog_file: "{analysis}_paralog_check_results.xlsx"     # S15C, reviewed
+  corrected_file: "corrected_features_analysis.xlsx"        # S17B, reviewed
+  paralog_file: "{analysis}_paralog_check_results.xlsx"     # S17C, reviewed
   output_dir: "data/kd/output/{analysis}"
   output_file: "{analysis}_corrected_features_annotated_paralogs.xlsx"
 
@@ -161,15 +136,15 @@ s15d:
   excluded_strain: null
 
 # =============================================================================
-# S17 - feature enrichment and strain-centric analysis
+# S19 - feature enrichment and strain-centric analysis
 # =============================================================================
-s17:
+s19:
   interaction_file: "data/strain_interactions.xlsx"
   feature_file: "data/Filtered_presence_absence_78strains.xlsx"
   output_dir: "output"
 
   # High-ANI subset on which the enrichment tests are run. This is the same
-  # descriptive boundary used in S13A; see S13B for its validation. It is a
+  # descriptive boundary used in S15A; see S15B for its validation. It is a
   # round number chosen for readability, not a fitted decision threshold.
   high_ani_threshold: 99.5
 
@@ -188,7 +163,7 @@ s17:
     min_count: 5
     log2or_label: 1.0
 
-  # Strain-centric case-control analysis (Methods 5.12). These are separate
+  # Strain-centric case-control analysis. These are separate
   # from the enrichment min_count above: a strain enters the analysis only if
   # it has at least this many merging and discriminating high-ANI partners.
   strain_centric:

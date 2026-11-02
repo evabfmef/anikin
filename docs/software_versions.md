@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This document records the main software tools, databases, and computational environments used in the study *"Kin discrimination in Bacillus subtilis is predicted by average nucleotide identity but shaped by mobile genetic elements"* (Stare et al.).
+This document records the main software tools, databases, and computational environments used in the study *"Genomic boundaries mark social boundaries in Bacillus subtilis"* (Stare et al.).
 
-Versions are those used in this study. Tools without a version below were not version-pinned in the original workflow; where known, the version is given. Python and R package versions are listed separately in `environment/requirements.txt` and `environment/R_packages.txt`.
+Versions are those used in this study. Tools without a version below were not version-pinned in the original workflow. Python and R package versions are listed separately in `environment/`.
 
 ---
 
@@ -15,6 +15,9 @@ Versions are those used in this study. Tools without a version below were not ve
 
 **Trimmomatic** (Illumina read processing)
 - Version: v38.1 / v0.39
+
+**fastp** (Illumina read processing)
+- Version: v0.23.2
 
 **NanoFilt** (Nanopore sequencing data processing)
 - Version: v2.8.0
@@ -106,6 +109,16 @@ Versions are those used in this study. Tools without a version below were not ve
 - Version: 2025.2.2
 
 ---
+ 
+## Visualization
+ 
+**Cytoscape** (network visualization of candidate KD group interactions)
+- Version: v3.10.3
+
+**XnConvert** (image format conversion)
+- Version: 1.106.0
+
+---
 
 ## Statistical analysis and scripting
 
@@ -115,7 +128,7 @@ Versions are those used in this study. Tools without a version below were not ve
 
 **Python**
 - Version: 3.10 / 3.12
-- Key libraries: see `environment/requirements.txt`
+- Key libraries: see `environment/requirements.txt` (S11B and S11C: `environment/requirements_GEM.txt`)
 
 ---
 

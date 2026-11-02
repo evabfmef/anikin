@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# S8_TA_systems_matrix_generation.R
+# S9_TA_systems_matrix_generation.R
 #
 # Toxin-antitoxin (TA) systems: BLAST family classification and
 # presence-absence matrix generation.

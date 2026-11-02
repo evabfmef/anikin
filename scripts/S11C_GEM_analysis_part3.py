@@ -1,10 +1,10 @@
 """
-S10C_GEM_analysis_part3.py — Reaction Presence/Absence Matrix Generation
+S11C_GEM_analysis_part3.py — Reaction Presence/Absence Matrix Generation
 --------------------------------------------------------------------
 Author: Eva Stare
 
 Generates a binary reaction presence/absence matrix from strain-specific
-genome-scale metabolic models (GEMs) produced by S10B_GEM_analysis_part2.py.
+genome-scale metabolic models (GEMs) produced by S11B_GEM_analysis_part2.py.
 
 """
 import os

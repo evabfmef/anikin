@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# S12_gene_content_clustering.R
+# S13_gene_content_clustering.R
 #
 # Accessory gene content clustering via Jaccard distance + UPGMA.
 #

@@ -1,5 +1,5 @@
 """
-S10B_GEM_analysis_part2.py — Draft Strain-Specific Metabolic Model Generation
+S11B_GEM_analysis_part2.py — Draft Strain-Specific Metabolic Model Generation
 --------------------------------------------------------------------------
 Author: Eva Stare
 
@@ -105,14 +105,8 @@ model_files = glob(os.path.join(MODELS_DIR, "*.json"))
 for mod_path in model_files:
     mod = cobra.io.load_json_model(mod_path)
 
-    # Match model file to strain column
-    current_strain = None
-    for col in geneIDs_matrix.columns:
-        if col in mod_path:
-            current_strain = col
-            break
-
-    if current_strain is None:
+    current_strain = os.path.splitext(os.path.basename(mod_path))[0]
+    if current_strain not in geneIDs_matrix.columns:
         continue
 
     id_mapping = geneIDs_matrix[current_strain].to_dict()

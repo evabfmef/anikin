@@ -1,26 +1,29 @@
 # Python packages required by the draft model generation and reaction matrix
-# scripts (S10B_GEM_analysis_part2.py, S10C_GEM_analysis_part3.py).
+# scripts (S11B_GEM_analysis_part2.py, S11C_GEM_analysis_part3.py).
 #
-# Python version used: 3.11
+# Python version used: 3.10
 # Install: pip install -r environment/requirements_GEM.txt
 #
 # -----------------------------------------------------------------------------
 # WHY THIS IS SEPARATE
 # -----------------------------------------------------------------------------
-# S10B requires cobra 0.26.0. Newer releases were tested and did not reproduce
+# S11B requires cobra 0.26.0. Newer releases were tested and did not reproduce
 # the draft model generation step correctly, so this pin is required rather than conservative.
 #
 # cobra 0.26.0 pins pandas~=1.0 and numpy~=1.13, which conflict with the
 # pandas and numpy used by every other script in this repository.
 # Installing this file alongside environment/requirements.txt will fail.
 #
+# pandas 1.3.5 provides no Python 3.11 build, so this environment uses
+# Python 3.10.
+#
 # Create a dedicated environment, for example:
 #
-#   conda create -n anikin_gem python=3.11
+#   conda create -n anikin_gem python=3.10
 #   conda activate anikin_gem
 #   pip install -r environment/requirements_GEM.txt
 #
-# Note that S10A runs under the main environment (cobra 0.29.1, biopython 1.83), not this one.
+# Note that S11A runs under the main environment (cobra 0.29.1, biopython 1.83), not this one.
 # -----------------------------------------------------------------------------
 
 cobra==0.26.0

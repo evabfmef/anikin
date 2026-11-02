@@ -1,8 +1,8 @@
 # =============================================================================
-# config_S13.yml
+# config_S15.yml
 #
-# Configuration for S13_strain_compatibility_analysis.R and
-# S13B_threshold_validation.R.
+# Configuration for S15A_strain_compatibility_analysis.R and
+# S15B_threshold_validation.R.
 #
 # All paths, thresholds, phenotype definitions and plot settings live here so
 # that they are separated from the data-processing code. Scripts read this
@@ -24,45 +24,46 @@ paths:
 phenotype:
   levels:
     - value: 1.00
-      label: "Strong kin"
-      color: "#4CAF50"
+      label: "Merging"
+      color: "#2166AC"
     - value: 0.50
-      label: "Kin"
-      color: "#9CCC65"
+      label: "Weak boundary"
+      color: "#92C5DE"
     - value: 0.25
-      label: "Non-kin"
-      color: "#FF9800"
+      label: "Intermediate boundary"
+      color: "#EF8A62"
     - value: 0.00
-      label: "Strong non-kin"
-      color: "#F44336"
+      label: "Strong boundary"
+      color: "#B2182B"
 
   # Inferential choices, kept separate from the scale itself.
-  # kin_cutoff        : phenotype >= this counts as kin (used by S13 and S13B)
-  # weak_kin_cutoff   : phenotype >= this counts as weakly kin-consistent
-  # lysis_value       : phenotype value denoting lysis
+  # kin_cutoff        : phenotype >= this counts as kin (used by S15A and S15B)
+  # weak_kin_cutoff   : phenotype <= this is non-kin (moderate nonconformer class); all within-group phenotypes >= this means no
+  #                     strong boundaries within the group
+  # lysis_value       : phenotype value denoting strong boundary
   kin_cutoff: 0.50
   weak_kin_cutoff: 0.25
   lysis_value: 0.00
 
 # --- ANI thresholds -----------------------------------------------------------
 # NOTE: these are DESCRIPTIVE bins, not fitted decision boundaries. They are
-# round numbers chosen for readability. See S13B for bootstrap confidence
+# round numbers chosen for readability. See S15B for bootstrap confidence
 # intervals, sensitivity analysis across candidate cuts, ROC/PR analysis and
 # leave-group-out validation of the boundary.
 ani:
-  strong_nonconformer: 99.7   # >= this ANI with lysis phenotype
+  strong_nonconformer: 99.7   # >= this ANI with strong boundary phenotype
   moderate_nonconformer: 99.5 # >= this ANI with any non-kin phenotype
   borderline_lower: 99.4      # borderline band lower edge (inclusive)
   borderline_upper: 99.5      # borderline band upper edge (exclusive)
 
-# --- S13B validation settings -------------------------------------------------
+# --- S15B validation settings -------------------------------------------------
 validation:
   n_boot: 2000
   seed: 20260724
   sweep_from: 99.3
   sweep_to: 99.8
   sweep_by: 0.05
-  # Cuts carried through from S13 for comparison on the sweep plot.
+  # Cuts carried through from S15 for comparison on the sweep plot.
   reference_cuts: [99.4, 99.5, 99.7]
 
 # --- Plot settings ------------------------------------------------------------
