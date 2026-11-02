@@ -21,11 +21,11 @@ This repository contains analysis code and documentation supporting the manuscri
  
 | Folder | Contents |
 | --- | --- |
-| `scripts/` | Analysis and figure-generation scripts S1–S20 and the shared configuration loader `kd_config.py` (see `scripts/README.md`) |
-| `config/` | Analysis settings: `config_S15.yml` (S15A, S15B) and `config_S16_S19.yml` (S17A–S17D, S19) |
+| `scripts/` | Analysis and figure-generation scripts S1–S20 (see `scripts/README.md`) |
+| `config/` | Analysis settings: `config_S15.yml` (S15A, S15B) and `config_S16_S19.yml` (S17A–S17D, S19), plus the loader `kd_config.py` used by S17A–S17D |
 | `metadata/` | Small strain-level tables read by the scripts (see below) |
 | `environment/` | Software environments: `environment.yml` / `requirements.txt` (all Python scripts except S11B and S11C), `requirements_GEM.txt` (S11B, S11C) and `R_packages.txt` |
-| `docs/` | This file, `software_versions.md` and `script_mapping.md` (inputs, outputs and dependencies of each script) |
+| `docs/` | This file and `software_versions.md` |
 
 ### Metadata tables
  
@@ -52,7 +52,7 @@ The following are not redistributed here, owing to their size and the computatio
 - Reference databases
 - Manuscript figures, supplementary figures, and supplementary tables (available with the published article)
 
-Input paths in the scripts and configuration files (e.g. `data/strain_interactions.xlsx`, `data/kd/inputs/`, `data/raw/gbk/`) refer to the local working layout used for the analysis. These files are not part of the repository; their content and origin are described in the manuscript Methods and in `docs/script_mapping.md`.
+Input paths in the scripts and configuration files (e.g. `data/strain_interactions.xlsx`, `data/kd/inputs/`, `data/raw/gbk/`) refer to the local working layout used for the analysis. These files are not part of the repository; their content and origin are described in the manuscript Methods and in the header of each script.
 
 ---
  
